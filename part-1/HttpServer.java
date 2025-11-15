@@ -1,11 +1,10 @@
 import java.io.*;
 import java.net.*;
-import java.util.HashMap;
-import java.util.Objects;
+import java.util.List;
 import java.util.Properties;
-import java.util.regex.*;
 
-public class Server {
+// used https://www.youtube.com/watch?v=5wQWJAvMDGg
+public class HttpServer {
 
     private static int port;
     private static String documentRoot; // TODO: is this needed?
@@ -19,9 +18,10 @@ public class Server {
 
     public static void main(String[] args) {
         // load in our properties
-        loadProperties();
+        Properties prop = PropertiesParser.loadProperties();
 
         // start the server
+        assert prop != null;
         port = Integer.parseInt(prop.getProperty("serverPort"));
         startServer();
 
@@ -32,7 +32,7 @@ public class Server {
                 System.out.println("New connection: " + connection.getInetAddress());
 
                 // serve the files provided in starter/public
-
+                handleRequest(connection);
 
 //                /* input and output */
 //                PrintWriter tx = new PrintWriter(connection.getOutputStream(), true);
@@ -82,29 +82,7 @@ public class Server {
         }
     }
 
-    private static void loadProperties() {
-        try {
-            // parse the properties file
-            // from https://www.baeldung.com/java-properties
-            String rootPath = Objects.requireNonNull(Thread.currentThread().getContextClassLoader().getResource("")).getPath();
-            String root = "CS2003-C3-ticket-chief";
 
-            // remove anything that is after 'CS2003-C3-ticket-chief'
-            int idx = rootPath.indexOf(root);
-
-            if (idx != -1) {
-                // keep up to the end of the folder name
-                rootPath = rootPath.substring(0, idx + root.length());
-            }
-
-            String appConfigPath = rootPath + "/cs2003-C3.properties";
-
-            prop = new Properties();
-            prop.load(new FileInputStream(appConfigPath));
-        } catch (IOException e) {
-            System.out.println("Properties file not found");
-        }
-    }
 
     private static void startServer() {
         try {
@@ -121,13 +99,15 @@ public class Server {
 
             BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
             String line = reader.readLine();
-            String[] parts = line.split(" ");
+            List<String>  parts = List.of(line.split(" "));
 
-            String requestMethod = parts[0];
-            String path = parts[1];
+            String requestMethod = parts.get(0);
+            String path = parts.get(1);
 
-            if ("GET".equalsIgnoreCase(requestMethod) && "/".equals(path)) {
-                writeResponse(outputStream);
+            if ("GET".equalsIgnoreCase(requestMethod) && "/index.html".equals(path)) {
+                HttpResponse response = HttpResponse.from(parts);
+
+                writeResponse(outputStream, response);
             }
 
             socket.close();
@@ -136,16 +116,16 @@ public class Server {
         }
     }
 
-    private static void writeResponse(OutputStream outputStream) throws IOException {
-        String message = "Test";
-        String httpResponse = """
-                HTTP/1.1 200 OK
-                Content-Type: text/plain
+    private static void writeResponse(OutputStream outputStream, HttpResponse response) throws IOException {
+        String httpHeader = """
+                HTTP/1.1 %d %s
+                Content-Type: %s
                 Content-Length:%d
-                %s
-                """.formatted(message.length(), message);
+                """
+                .formatted(response.code(), response.status(), response.contentType(), response.content().length);
 
-        outputStream.write(httpResponse.getBytes());
+        outputStream.write(httpHeader.getBytes());
+        outputStream.write(response.content());
         outputStream.flush();
         outputStream.close();
     }
