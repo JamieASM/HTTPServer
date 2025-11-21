@@ -6,10 +6,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 public class HttpRequestHandler {
-    private BufferedReader reader;
-    private OutputStream outputStream;
+    private final BufferedReader reader;
+    private final OutputStream outputStream;
 
-    private String documentRoot;
+    private final String documentRoot;
 
     public HttpRequestHandler(BufferedReader reader, OutputStream outputStream, String documentRoot) {
         this.reader = reader;

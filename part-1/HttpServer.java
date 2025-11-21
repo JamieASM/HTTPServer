@@ -10,10 +10,6 @@ public class HttpServer {
     private static ServerSocket  server;
     private static Properties prop;
 
-    /* create a regex to parse headers as per RFC9112 */
-    private static final String headerRegex = "^(?<name>[\\w-]+):\\s*(?<value>.*)\\s*$";
-    private static final int TIMEOUT = 30000;
-
     public static void main(String[] args) {
         // load in our properties
         Properties prop = PropertiesParser.loadProperties();
@@ -28,7 +24,7 @@ public class HttpServer {
                     Socket connection = server.accept();
                     InputStream inputStream = connection.getInputStream();
                     OutputStream outputStream = connection.getOutputStream();
-                    BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
+                    BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream))
             ) {
                 // wait for connection
                 System.out.println("New connection: " + connection.getInetAddress());
