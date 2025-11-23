@@ -1,8 +1,13 @@
 package utils;
 
 public enum HttpStatus {
-    NOTFOUND(404, "Not Found"),
-    OK(200, "OK");
+    OK(200, "OK"),
+    SERVER_ERROR(500, "Internal Server Error"),
+    CREATED(201, "Created"),
+    BAD_REQUEST(400, "Bad Request"),
+    NOT_FOUND(404, "Not Found");
+
+
 
     private final int statusCode;
     private final String statusMessage;
