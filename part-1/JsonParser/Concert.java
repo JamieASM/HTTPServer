@@ -39,6 +39,17 @@ public class Concert {
 
     @Override
     public String toString() {
-        return String.format("Artist: %s, Tickets: %d, Venue: %s, DateTime: %s", artist, count, venue, dateTime);
+        return """
+                {
+                "count": "%d",
+                "artist": "%s",
+                "venue": "%s",
+                "datetime": "%s"
+                }
+                """.formatted(
+                getCount(),
+                getArtist(),
+                getVenue(),
+                getDateTime());
     }
 }

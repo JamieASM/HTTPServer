@@ -45,20 +45,17 @@ public class Store {
         return concerts.get(artist);
     }
 
-    public String[] getArtists() {
-        return concerts.keySet().toArray(new String[0]);
-    }
-
-    public byte[] getConcerts() {
+    @Override
+    public String toString() {
         StringBuilder sb = new StringBuilder();
+        sb.append("[\n");
 
-        for (Concert concert : concerts.values()) {
-            sb.append(concert.toString());
-            sb.append("\n");
+        for (String artist : concerts.keySet()) {
+            sb.append(concerts.get(artist).toString());
         }
 
-        return sb.toString().getBytes();
-    }
+        sb.append("]");
 
-    // TODO: do we need more getter methods?
+        return sb.toString();
+    }
 }

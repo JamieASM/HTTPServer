@@ -1,4 +1,6 @@
 package utils;
 
-public record HttpRequest(String method, String path) {
+import java.util.Map;
+
+public record HttpRequest(String method, String path, Map<String, String> headers, String body) {
 }
