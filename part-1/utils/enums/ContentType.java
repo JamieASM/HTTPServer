@@ -1,4 +1,4 @@
-package utils;
+package utils.enums;
 
 public enum ContentType {
     html("text/html"),
