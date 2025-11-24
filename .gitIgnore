@@ -2,3 +2,4 @@
 *.yml
 *.xml
 *.iml
+out/
