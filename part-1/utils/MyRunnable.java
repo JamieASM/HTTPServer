@@ -6,12 +6,14 @@ import utils.store.Concert;
 public class MyRunnable implements Runnable {
     private final IQueue queue;
     private final Concert concert;
+    private final int number;
 
     private int id;
 
-    public MyRunnable(IQueue queue, Concert concert) {
+    public MyRunnable(IQueue queue, Concert concert, int number) {
         this.queue = queue;
         this.concert = concert;
+        this.number = number;
     }
 
     @Override
@@ -25,7 +27,7 @@ public class MyRunnable implements Runnable {
             throw new RuntimeException(e);
         }
 
-        id = queue.enqueue(concert);
+        id = queue.enqueue(concert, number);
         concert.reduceCount();
     }
 

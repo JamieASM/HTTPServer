@@ -9,8 +9,9 @@ public interface IQueue {
      * Adds an element to the end of the queue.
      *
      * @param concert the concert to be queued
+     * @param number the number of tickets purchased
      */
-    int enqueue(Concert concert);
+    int enqueue(Concert concert, int number);
 
     /**
      * Removes the element at the head of the queue.
@@ -35,4 +36,11 @@ public interface IQueue {
      * Removes all elements from the queue.
      */
     void clear();
+
+    /**
+     * Gets the current position of a ticket purchase in the queue
+     * @param id The id of the ticket
+     * @return The position of the ticket
+     */
+    int getPosition(int id);
 }

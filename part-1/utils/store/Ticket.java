@@ -2,16 +2,19 @@ package utils.store;
 
 public class Ticket {
     private final Concert concert;
+
     private int queueID;
     private String purchasedID;
     private boolean purchased;
+    private int numberPurchased;
 
-    public Ticket(Concert concert, int queueID) {
+    public Ticket(Concert concert, int queueID, int numberPurchased) {
         // a newly made ticket cannot have yet been purchased
         this.concert = concert;
         this.queueID = queueID;
         this.purchasedID = "";
-        purchased = false;
+        this.purchased = false;
+        this.numberPurchased = 0;
     }
 
     public void setPurchased(String id) {

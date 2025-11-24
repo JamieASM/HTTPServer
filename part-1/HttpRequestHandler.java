@@ -10,11 +10,14 @@ import utils.HttpResponse;
 
 import utils.enums.HttpStatus;
 import utils.enums.ContentType;
+import utils.store.Ticket;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.IOException;
-import java.io.OutputStream;
+import javax.json.Json;
+import javax.json.JsonArray;
+import javax.json.JsonObject;
+import javax.json.JsonReader;
+
+import java.io.*;
 
 import java.nio.file.Files;
 
@@ -228,8 +231,10 @@ public class HttpRequestHandler {
 
             // otherwise, we need to check if the concert has remaining tickets
             if (concert.getCount() > 0) {
+                int number = getNumber();
+
                 // add this to the queue
-                MyRunnable runnable = new MyRunnable(queue, concert);
+                MyRunnable runnable = new MyRunnable(queue, concert, number);
                 runnable.run();
                 int id = runnable.getId();
 
@@ -259,7 +264,34 @@ public class HttpRequestHandler {
                 req.method().equals("GET") &&
                 req.headers().get("Accept").equals("application/json")
         ) {
-            int id = Integer.parseInt(path);
+            if (path.startsWith("T-")) {
+                Ticket ticket = store.getTicket(path);
+
+                if (ticket == null) {
+                    return make404();
+                }
+
+                StringBuilder sb = new StringBuilder();
+
+
+            }
+            else {
+                int id = Integer.parseInt(path);
+
+                int pos = queue.getPosition(id);
+            }
+
+            if (pos != -1) { // case where it has left the queue
+                // But it could be in the processed list!!
+                if (pos == Store) {
+
+                }
+
+                return make404();
+            }
+            else {
+
+            }
         }
 
         return new HttpResponse(
@@ -268,5 +300,12 @@ public class HttpRequestHandler {
                 "The server could not process request".getBytes(),
                 new HashMap<>()
         );
+    }
+
+    private int getNumber() {
+        JsonReader reader = Json.createReader(new StringReader(req.body()));
+        JsonObject jsonObject = reader.readObject();
+
+        return jsonObject.getInt("tickets");
     }
 }

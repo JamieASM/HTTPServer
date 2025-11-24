@@ -27,11 +27,11 @@ public class Queue implements IQueue {
     }
 
     @Override
-    public int enqueue(Concert concert) {
+    public int enqueue(Concert concert, int number) {
         try {
             if (queue.size() < CAPACITY) {
                 // add to the queue
-                queue.add(new Ticket(concert, queueId++));
+                queue.add(new Ticket(concert, queueId++, number));
                 return queueId;
             } else {
                 throw new QueueFullException();
