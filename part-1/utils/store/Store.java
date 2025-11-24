@@ -1,4 +1,4 @@
-package JsonParser;
+package utils.store;
 
 import javax.json.Json;
 import javax.json.JsonArray;
@@ -9,9 +9,11 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 
 import java.util.HashMap;
+import java.util.List;
 
 public class Store {
     private HashMap<String, Concert> concerts;
+    private List<Ticket> purchasedTickets;
 
     public Store(String json) {
         try {
@@ -57,5 +59,20 @@ public class Store {
         sb.append("]");
 
         return sb.toString();
+    }
+
+    // TODO: USE THIS
+    public void addPurchasedTicket(Ticket ticket) {
+        purchasedTickets.add(ticket);
+    }
+
+    public Ticket getTicket(String purchasedId) {
+        for (Ticket ticket : purchasedTickets) {
+            if (ticket.getPurchasedID().equals(purchasedId)) {
+                return ticket;
+            }
+        }
+        // TODO: HMMMM
+        return null;
     }
 }

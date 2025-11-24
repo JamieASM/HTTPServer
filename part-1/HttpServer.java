@@ -1,10 +1,7 @@
-import JsonParser.Concert;
-import JsonParser.Store;
+import utils.PropertiesParser;
 
 import java.io.*;
 import java.net.*;
-import java.util.Arrays;
-import java.util.HashMap;
 import java.util.Properties;
 
 // used https://www.youtube.com/watch?v=5wQWJAvMDGg

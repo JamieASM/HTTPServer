@@ -10,33 +10,28 @@ import java.util.Map;
 public record HttpResponse(HttpStatus status, ContentType contentType, byte[] bytes, Map<String, String> headers) {
 
     public void sendResponse(OutputStream outputStream) throws IOException {
-        outputStream.write("HTTP/1.1 %d %s\n\n".formatted(status.getStatusCode(), status.getStatusMessage()).getBytes());
-        outputStream.write(getHeadersString().getBytes());
+        StringBuilder builder = new StringBuilder();
 
-        outputStream.write(("""
-                Content-Type: %s\r
-                Content-Length: %d\r
-                \r
-                """)
-                .formatted(
-                        contentType.getContentType(),
-                        bytes.length
-                ).getBytes());
+        // Get the first line
+        builder.append("HTTP/1.1 ")
+                .append(status.getStatusCode()).append(" ")
+                .append(status.getStatusMessage()).append("\r\n");
 
-        outputStream.write(bytes);
-        outputStream.flush();
-    }
+        // Append the always required headers
+        builder.append("Content-Type: ").append(contentType.getContentType()).append("\r\n");
+        builder.append("Content-Length: ").append(bytes.length).append("\r\n");
 
-    private String getHeadersString() {
-        StringBuilder sb = new StringBuilder();
-
-        for (Map.Entry<String, String> header : headers.entrySet()) {
-            String key = header.getKey();
-            String value = header.getValue();
-
-            sb.append(String.format("%s: %s\r\n", key, value));
+        // Add any extra headers
+        for (Map.Entry<String, String> h : headers.entrySet()) {
+            builder.append(h.getKey()).append(": ").append(h.getValue()).append("\r\n");
         }
 
-        return sb.toString();
+        // finish the headers
+        builder.append("\r\n");
+
+        // Send the info
+        outputStream.write(builder.toString().getBytes());
+        outputStream.write(bytes);
+        outputStream.flush();
     }
 }

@@ -1,5 +1,5 @@
-import JsonParser.Concert;
-import JsonParser.Store;
+import utils.store.Concert;
+import utils.store.Store;
 
 import utils.HttpRequest;
 import utils.HttpResponse;
@@ -39,10 +39,12 @@ public class HttpRequestHandler {
             // get the path of the request
             String path = req.path().toLowerCase();
 
+            System.out.println("Path: " + path);
+
             if (path.equals("/")) {
                 res = serveIndex();
             }
-            if (path.equals("/styles.css")) {
+            else if (path.equals("/styles.css")) {
                 res = new HttpResponse(
                         HttpStatus.OK,
                         ContentType.css,
@@ -89,7 +91,6 @@ public class HttpRequestHandler {
         char[] bodyChars = new char[contentLength];
         reader.read(bodyChars, 0, contentLength);
         body = new String(bodyChars);
-        System.out.println("Body received: " + body);
 
         return new HttpRequest(method, path, headers, body);
     }
@@ -130,7 +131,7 @@ public class HttpRequestHandler {
 
     public HttpResponse handleTicketRequest(String path) {
         /*
-        For example:
+        For example,
         GET /tickets HTTP/1.1
         Accept: application/json
          */

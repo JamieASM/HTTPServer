@@ -1,2 +1,3 @@
-curl -X GET -H "Accept: application/json" http://localhost:8080/tickets/
+curl -X GET -H "Accept: application/json" http://localhost:8080/tickets/foals
+
 

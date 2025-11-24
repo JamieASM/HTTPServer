@@ -1,4 +1,4 @@
-package JsonParser;
+package utils.store;
 
 public class Concert {
     private int count;
