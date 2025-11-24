@@ -8,6 +8,7 @@ import javax.json.JsonReader;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
@@ -18,6 +19,7 @@ public class Store {
     public Store(String json) {
         try {
             this.concerts = parseJson(Json.createReader(new FileInputStream(json)));
+            this.purchasedTickets = new ArrayList<>();
         }
         catch (FileNotFoundException e) {
             System.err.println("File not found: " + e.getMessage());

@@ -8,18 +8,16 @@ public interface IQueue {
     /**
      * Adds an element to the end of the queue.
      *
-     * @param element the element to be queued
-     * @throws QueueFullException if there is no room in the queue for the new element
+     * @param concert the concert to be queued
      */
-    int enqueue(Concert concert) throws QueueFullException;
+    int enqueue(Concert concert);
 
     /**
      * Removes the element at the head of the queue.
      *
      * @return the element removed
-     * @throws QueueEmptyException if the queue is empty
      */
-    Object dequeue() throws QueueEmptyException;
+    Object dequeue();
 
     /**
      * Returns the number of elements in the queue.

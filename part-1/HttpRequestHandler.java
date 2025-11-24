@@ -1,3 +1,7 @@
+import utils.MyRunnable;
+import utils.queue.interfaces.IQueue;
+import utils.queue.Queue;
+
 import utils.store.Concert;
 import utils.store.Store;
 
@@ -11,7 +15,9 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
+
 import java.nio.file.Files;
+
 import java.util.HashMap;
 import java.util.Map;
 
@@ -24,11 +30,14 @@ public class HttpRequestHandler {
 
     private HttpRequest req;
 
+    private final IQueue queue;
+
     public HttpRequestHandler(BufferedReader reader, OutputStream outputStream, String documentRoot) {
         this.reader = reader;
         this.outputStream = outputStream;
         this.documentRoot = documentRoot;
         this.store = new Store("./tickets.json");
+        this.queue = new Queue(store);
     }
 
     protected void handleRequest() {
@@ -55,7 +64,7 @@ public class HttpRequestHandler {
             else if (path.startsWith("/tickets")) {
                 res = handleTicketRequest(path.substring("/tickets".length()));
             }
-            else if (path.startsWith("/queue/")) {
+            else if (path.startsWith("/queue")) {
                 res = handleQueueRequest(path.substring("/queue".length()));
             }
             else { // otherwise return a 404 error
@@ -186,23 +195,26 @@ public class HttpRequestHandler {
          * }
          */
 
+        // bad request if no artist is provided
+        if (path.isBlank() || path.equals("/")) {
+            return new HttpResponse(
+                    HttpStatus.BAD_REQUEST,
+                    ContentType.textPlain,
+                    "Invalid request: Missing artist name".getBytes(),
+                    new HashMap<>()
+            );
+        }
+
+        path = path.substring(1).replace("-", " ");
+
         if (
                 req.method().equals("POST") &&
-                        req.headers().get("Accept").equals("application/json") &&
-                        req.headers().get("Content-Type").equals("application/json") &&
-                        Integer.parseInt(req.headers().get("Content-Length")) > 0) {
-
-            // bad request if no artist is provided
-            if (path.isBlank() || path.equals("/")) {
-                return new HttpResponse(
-                        HttpStatus.BAD_REQUEST,
-                        ContentType.textPlain,
-                        "Invalid request: Missing artist name".getBytes(),
-                        new HashMap<>()
-                );
-            }
-
-            Concert concert = store.getConcert(path.substring(1).replace("-", " "));
+                req.headers().get("Accept").equals("application/json") &&
+                req.headers().get("Content-Type").equals("application/json") &&
+                Integer.parseInt(req.headers().get("Content-Length")) > 0
+        ) {
+            // otherwise, an artist should have been added to the url.
+            Concert concert = store.getConcert(path);
 
             // if the concert doesn't exist, its another bad request
             if (concert == null) {
@@ -216,8 +228,11 @@ public class HttpRequestHandler {
 
             // otherwise, we need to check if the concert has remaining tickets
             if (concert.getCount() > 0) {
-                // TODO: Add purchase to the queue
-                int id = 3;
+                // add this to the queue
+                MyRunnable runnable = new MyRunnable(queue, concert);
+                runnable.run();
+                int id = runnable.getId();
+
                 HashMap<String, String> headers = new HashMap<>();
                 headers.put("Location", path + "/" + id);
 
@@ -225,10 +240,10 @@ public class HttpRequestHandler {
                         HttpStatus.CREATED,
                         ContentType.json,
                         """
-                                        {
-                                        "id": %d
-                                        }
-                                """.formatted(id).getBytes(),
+                        {
+                        "id": %d
+                        }
+                        """.formatted(id).getBytes(),
                         headers
                 );
             } else { // nothing has been able to be created
@@ -240,7 +255,18 @@ public class HttpRequestHandler {
                 );
             }
         }
+        else if (
+                req.method().equals("GET") &&
+                req.headers().get("Accept").equals("application/json")
+        ) {
+            int id = Integer.parseInt(path);
+        }
 
-        return serveIndex();
+        return new HttpResponse(
+                HttpStatus.SERVER_ERROR,
+                ContentType.textPlain,
+                "The server could not process request".getBytes(),
+                new HashMap<>()
+        );
     }
 }
