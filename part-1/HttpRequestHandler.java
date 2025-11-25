@@ -1,8 +1,8 @@
-import utils.MyRunnable;
 import utils.queue.interfaces.IQueue;
 import utils.queue.Queue;
 
 import utils.store.Concert;
+import utils.store.Purchase;
 import utils.store.Store;
 
 import utils.HttpRequest;
@@ -10,10 +10,8 @@ import utils.HttpResponse;
 
 import utils.enums.HttpStatus;
 import utils.enums.ContentType;
-import utils.store.Ticket;
 
 import javax.json.Json;
-import javax.json.JsonArray;
 import javax.json.JsonObject;
 import javax.json.JsonReader;
 
@@ -23,24 +21,25 @@ import java.nio.file.Files;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 public class HttpRequestHandler {
     private final BufferedReader reader;
     private final OutputStream outputStream;
-    private final Store store;
-
     private final String documentRoot;
 
-    private HttpRequest req;
+    private static final Store store = new Store("./tickets.json");
+    private static final IQueue queue = new Queue(store);
+    private static final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(4);
 
-    private final IQueue queue;
+    private HttpRequest req;
 
     public HttpRequestHandler(BufferedReader reader, OutputStream outputStream, String documentRoot) {
         this.reader = reader;
         this.outputStream = outputStream;
         this.documentRoot = documentRoot;
-        this.store = new Store("./tickets.json");
-        this.queue = new Queue(store);
     }
 
     protected void handleRequest() {
@@ -50,59 +49,111 @@ public class HttpRequestHandler {
 
             // get the path of the request
             String path = req.path().toLowerCase();
-
             System.out.println("Path: " + path);
 
             if (path.equals("/")) {
                 res = serveIndex();
             }
             else if (path.equals("/styles.css")) {
-                res = new HttpResponse(
-                        HttpStatus.OK,
-                        ContentType.css,
-                        Files.readAllBytes(new File(documentRoot + "/styles.css").toPath()),
-                        new HashMap<>()
-                );
+                res = serveStatic("./styles.css", ContentType.css);
             }
             else if (path.startsWith("/tickets")) {
-                res = handleTicketRequest(path.substring("/tickets".length()));
+                res = handleTicketRequest();
             }
             else if (path.startsWith("/queue")) {
-                res = handleQueueRequest(path.substring("/queue".length()));
+                res = handleQueueRequest(path);
             }
             else { // otherwise return a 404 error
                res = make404();
             }
 
             res.sendResponse(outputStream);
-
         }
         catch (IOException e) {
             throw new RuntimeException(e);
         }
     }
 
+    // SERVING FILES
+
+    private HttpResponse serveStatic(String file, ContentType contentType) throws IOException {
+        File f  = new File(documentRoot + file);
+
+        if (!f.exists()) {
+            return make404();
+        }
+
+        return new HttpResponse(
+                HttpStatus.OK,
+                contentType,
+                Files.readAllBytes(f.toPath()),
+                new HashMap<>()
+        );
+    }
+
+    private HttpResponse serveIndex() throws IOException {
+        return serveStatic("/index.html", ContentType.html);
+    }
+
+    private HttpResponse make404() {
+        return new HttpResponse(
+                HttpStatus.NOT_FOUND,
+                ContentType.textPlain,
+                "404 File Not Found".getBytes(),
+                new HashMap<>()
+        );
+    }
+
+    private HttpResponse make500(String message) {
+        return new HttpResponse(
+                HttpStatus.SERVER_ERROR,
+                ContentType.textPlain,
+                message.getBytes(),
+                new HashMap<>()
+        );
+    }
+
+    private HttpResponse make400(String message) {
+        return new HttpResponse(
+                HttpStatus.BAD_REQUEST,
+                ContentType.textPlain,
+                message.getBytes(),
+                new HashMap<>()
+        );
+    }
+
+    private HttpResponse make200(String message) {
+        return new HttpResponse(
+                HttpStatus.OK,
+                ContentType.textPlain,
+                message.getBytes(),
+                new HashMap<>()
+        );
+    }
+
+    // PARSING THE REQUESTS
+
     private HttpRequest buildRequest() throws IOException {
-        // declare our variables
-        String method;
-        String path;
-        Map<String, String> headers;
-        String body;
+        String start = reader.readLine();
+        String[] parts = start.split(" ");
 
-        // GET, URL
-        String[] line = reader.readLine().split(" ");
-        method = line[0];
-        path = line[1];
+        // i.e. GET /tickets HTTP/1.1
+        String method = parts[0];
+        String path = parts[1];
 
-        // headers
-        headers = parseHeaders();
+        // Get the headers
+        Map<String, String> headers = parseHeaders();
 
-        // body
-        int contentLength = headers.containsKey("Content-Length") ? Integer.parseInt(headers.get("Content-Length")) : 0;
+        // Get the body (if there is one)
+        int contentLength = headers.containsKey("Content-Length")
+                ? Integer.parseInt(headers.get("Content-Length"))
+                : 0;
 
-        char[] bodyChars = new char[contentLength];
-        reader.read(bodyChars, 0, contentLength);
-        body = new String(bodyChars);
+        // build the string using the chars of the content
+        char[] chars = new char[contentLength];
+        reader.read(chars, 0, contentLength);
+
+        String body = new String(chars);
 
         return new HttpRequest(method, path, headers, body);
     }
@@ -123,189 +174,161 @@ public class HttpRequestHandler {
         return headers;
     }
 
-    private HttpResponse make404() {
-        return new HttpResponse(
-                HttpStatus.NOT_FOUND,
-                ContentType.textPlain,
-                "404 File Not Found".getBytes(),
-                new HashMap<>()
-        );
-    }
+    // GET /tickets
 
-    private HttpResponse serveIndex() throws IOException {
-        return new HttpResponse(
-                HttpStatus.OK,
-                ContentType.html,
-                Files.readAllBytes(new File(documentRoot + "/index.html").toPath()),
-                new HashMap<>()
-        );
-    }
-
-    public HttpResponse handleTicketRequest(String path) {
+    public HttpResponse handleTicketRequest() {
         /*
         For example,
         GET /tickets HTTP/1.1
         Accept: application/json
          */
 
-        if (
-                req.method().equals("GET") &&
-                req.headers().get("Accept").equals("application/json") &&
-                !req.headers().containsKey("Content-Length")
-        ) {
-            // if we want the information for all artists.
-            if (path.isBlank() || path.equals("/")) {
-                return new HttpResponse(
-                        HttpStatus.OK,
-                        ContentType.json,
-                        store.toString().getBytes(),
-                        new HashMap<>()
-                );
-            }
-
-            String artist = path.substring(1).replace("-", " ");
-
-            if (store.getConcert(artist) != null) {
-                return new HttpResponse(
-                        HttpStatus.OK,
-                        ContentType.json,
-                        store.getConcert(artist).toString().getBytes(),
-                        new HashMap<>()
-                );
-            }
+        if (!req.method().equals("GET")) {
+            return make500("Only GET is allowed for /tickets.");
         }
 
-        // otherwise it is a 500 error
+        if (!req.headers().get("Accept").equals("application/json")) {
+            return make500("Accept must be application/json.");
+        }
+
+        if (req.headers().containsKey("Content-Length")) {
+            return make500("Unexpected content was provided.");
+        }
+
+        // otherwise, return all the tickets
         return new HttpResponse(
-                HttpStatus.SERVER_ERROR,
-                ContentType.textPlain,
-                "500 Internal Server Error".getBytes(),
+                HttpStatus.OK,
+                ContentType.json,
+                store.toString().getBytes(),
                 new HashMap<>()
         );
     }
 
-    // TODO: Fix Queue
+    // /queue REQUESTS
+
     private HttpResponse handleQueueRequest(String path) throws IOException {
-        /*
-         * For example:
-         * POST /queue HTTP/1.1
-         * Host: example.com
-         * Accept: application/json
-         * Content-Type: application/json
-         *
-         * {
-         * "tickets": 2
-         * }
-         */
-
-        // bad request if no artist is provided
-        if (path.isBlank() || path.equals("/")) {
-            return new HttpResponse(
-                    HttpStatus.BAD_REQUEST,
-                    ContentType.textPlain,
-                    "Invalid request: Missing artist name".getBytes(),
-                    new HashMap<>()
-            );
+        if (req.method().equals("GET")) {
+            return handleQueueGetRequest(path);
+        }
+        else if (req.method().equals("POST")) {
+            return handleQueuePostRequest(path.substring("/queue".length()).replaceAll("-", " "));
         }
 
-        path = path.substring(1).replace("-", " ");
+        return make500("The /queue request made is invalid.");
+    }
 
-        if (
-                req.method().equals("POST") &&
-                req.headers().get("Accept").equals("application/json") &&
-                req.headers().get("Content-Type").equals("application/json") &&
-                Integer.parseInt(req.headers().get("Content-Length")) > 0
-        ) {
-            // otherwise, an artist should have been added to the url.
-            Concert concert = store.getConcert(path);
+    // POST
 
-            // if the concert doesn't exist, its another bad request
-            if (concert == null) {
-                return new HttpResponse(
-                        HttpStatus.BAD_REQUEST,
-                        ContentType.textPlain,
-                        "Invalid Request: The provided artist name is invalid".getBytes(),
-                        new HashMap<>()
-                );
-            }
-
-            // otherwise, we need to check if the concert has remaining tickets
-            if (concert.getCount() > 0) {
-                int number = getNumber();
-
-                // add this to the queue
-                MyRunnable runnable = new MyRunnable(queue, concert, number);
-                runnable.run();
-                int id = runnable.getId();
-
-                HashMap<String, String> headers = new HashMap<>();
-                headers.put("Location", path + "/" + id);
-
-                return new HttpResponse(
-                        HttpStatus.CREATED,
-                        ContentType.json,
-                        """
-                        {
-                        "id": %d
-                        }
-                        """.formatted(id).getBytes(),
-                        headers
-                );
-            } else { // nothing has been able to be created
-                return new HttpResponse(
-                        HttpStatus.OK,
-                        ContentType.json,
-                        "{}".getBytes(),
-                        new HashMap<>()
-                );
-            }
+    private HttpResponse handleQueuePostRequest(String artist) {
+        // check the request headers
+        if (!req.headers().get("Accept").equals("application/json")) {
+            return make500("Accept must be application/json");
         }
-        else if (
-                req.method().equals("GET") &&
-                req.headers().get("Accept").equals("application/json")
-        ) {
-            if (path.startsWith("T-")) {
-                Ticket ticket = store.getTicket(path);
-
-                if (ticket == null) {
-                    return make404();
-                }
-
-                StringBuilder sb = new StringBuilder();
-
-
-            }
-            else {
-                int id = Integer.parseInt(path);
-
-                int pos = queue.getPosition(id);
-            }
-
-            if (pos != -1) { // case where it has left the queue
-                // But it could be in the processed list!!
-                if (pos == Store) {
-
-                }
-
-                return make404();
-            }
-            else {
-
-            }
+        else if (!req.headers().get("Content-Type").equals("application/json")) {
+            return make500("Content-Type must be application/json");
         }
+
+        // check that an artist has been attached.
+        if (artist.isBlank() || artist.equals("/")) {
+            return make400("Invalid request: Missing artist name");
+        }
+
+        artist = artist.substring(1);
+
+        // get the concert
+        Concert concert = store.getConcert(artist);
+
+        // check that the concert exists
+        if (concert == null) {
+            return make400("Invalid request: Invalid artist name");
+        }
+
+        // now we know that the concert is valid, we need to see if there are tickets available
+        int numberOfTickets = parseNumberOfTickets();
+
+        if (concert.getCount() <= numberOfTickets) {
+            return make200("The number of tickets requested exceeds the number of tickets available.");
+        }
+
+        // TODO: make this run in the background?
+//        int id = delayEnqueue(concert, numberOfTickets);
+        int id = scheduleEnqueue(concert, numberOfTickets);
+
+        HashMap<String, String> headers = new HashMap<>();
+        headers.put("Location", "/queue/" + id);
 
         return new HttpResponse(
-                HttpStatus.SERVER_ERROR,
-                ContentType.textPlain,
-                "The server could not process request".getBytes(),
-                new HashMap<>()
+                HttpStatus.CREATED,
+                ContentType.json,
+                ("{\"id\": " + id + "}").getBytes(),
+                headers
         );
     }
 
-    private int getNumber() {
+    private int parseNumberOfTickets() {
         JsonReader reader = Json.createReader(new StringReader(req.body()));
         JsonObject jsonObject = reader.readObject();
+        int numberOfTickets = jsonObject.getInt("tickets");
+        reader.close();
 
-        return jsonObject.getInt("tickets");
+        return numberOfTickets;
+    }
+
+    // GET
+
+    private HttpResponse handleQueueGetRequest(String path) {
+        if (!path.startsWith("/queue/")) {
+            return make404();
+        }
+
+        // get the id
+        String ticketId = path.substring("/queue/".length());
+        int id;
+
+        try {
+            id = Integer.parseInt(ticketId);
+        } catch (NumberFormatException e) {
+            return make500("Ticket id must be an integer");
+        }
+
+        // See the position of the id
+        int position = queue.getPosition(id);
+        Purchase purchase = store.getPurchase(id);
+        System.out.println(id);
+        System.out.println(store.getPurchase(id));
+
+        // TODO: Error is here
+        if (purchase == null) {
+            return make404();
+        }
+
+        JsonObject json = purchase.toJson(position);
+
+        if (json == null) {
+            return make404();
+        }
+
+        return new HttpResponse(
+                HttpStatus.OK,
+                ContentType.json,
+                json.toString().getBytes(),
+                new HashMap<>()
+        );
+    }
+
+    private int scheduleEnqueue(Concert concert, int numberOfTickets) {
+        int id = queue.reserveId();
+
+        // delay of 5-10 seconds
+        int delay = (int)(Math.random() * 6) + 5;
+
+        scheduler.schedule(() -> {
+            queue.enqueue(concert, numberOfTickets, id);
+            concert.reduceCount(numberOfTickets);
+
+            System.out.println(id);
+        }, delay, TimeUnit.SECONDS);
+
+        return id;
     }
 }

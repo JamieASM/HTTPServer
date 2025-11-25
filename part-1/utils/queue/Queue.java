@@ -4,59 +4,58 @@ import utils.queue.common.QueueEmptyException;
 import utils.queue.common.QueueFullException;
 import utils.queue.interfaces.IQueue;
 import utils.store.Concert;
+import utils.store.Purchase;
 import utils.store.Store;
-import utils.store.Ticket;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class Queue implements IQueue {
     private final int CAPACITY;
-    private final List<Ticket> queue;
+    private final List<Purchase> queue;
     private final Store store;
+    private final AtomicInteger queueId = new AtomicInteger(0);
 
-    private int queueId;
     private int purchasedTicketId;
 
     public Queue(Store store) {
         this.store = store;
         this.CAPACITY = 128; // fair size?
-        this.queue = new ArrayList<>(CAPACITY);
-        this.queueId = 0;
+        this.queue = new ArrayList<>();
         this.purchasedTicketId = 0;
     }
 
     @Override
-    public int enqueue(Concert concert, int number) {
+    public void enqueue(Concert concert, int numberOfTickets, int id) {
         try {
             if (queue.size() < CAPACITY) {
-                // add to the queue
-                queue.add(new Ticket(concert, queueId++, number));
-                return queueId;
+                Purchase purchase = new Purchase(concert, id, numberOfTickets);
+                // add to the queue and store
+                store.addPurchase(purchase);
+                queue.add(purchase);
             } else {
                 throw new QueueFullException();
             }
         }
         catch (QueueFullException e) {
             System.out.println("Queue full");
-            return -1; // indicates that it is wrong as queueID can never be negative
         }
     }
 
     @Override
-    public String dequeue() {
+    public List<String> dequeue() {
         try {
             if(queue.isEmpty()) {
                 throw new QueueEmptyException();
             }
 
-            Ticket ticket = queue.removeFirst();
-            // set the purchaseID
-            String purchasedId = makePurchaseID();
-            ticket.setPurchased(purchasedId);
-            store.addPurchasedTicket(ticket);
+            Purchase purchase = queue.removeFirst();
+            // get the purchase ids
+            List<String> ids = getTicketIds(purchase.getNumberOfTickets());
+            purchase.setTicketIDs(ids);
 
-            return purchasedId;
+            return ids;
         } catch (QueueEmptyException e) {
             System.out.println("Queue empty");
             return null;
@@ -78,9 +77,14 @@ public class Queue implements IQueue {
         queue.clear();
     }
 
+    @Override
+    public int reserveId() {
+        return queueId.getAndIncrement();
+    }
+
     public int getPosition(int id) {
         for (int i = 0; i < queue.size(); i++) {
-            if (queue.get(i).getQueueID() == id) {
+            if (queue.get(i).getId() == id) {
                 return i;
             }
         }
@@ -89,10 +93,21 @@ public class Queue implements IQueue {
         return -1;
     }
 
+    private List<String> getTicketIds(int numberOfTickets) {
+        List<String> ticketIds = new ArrayList<>();
+
+        for (int i = 0; i < numberOfTickets; i++) {
+            ticketIds.add(makePurchaseID());
+        }
+
+        return ticketIds;
+    }
+
     private String makePurchaseID() {
         purchasedTicketId++;
 
         // TODO: nicely format if there is time
         return "T-" + purchasedTicketId;
     }
+
 }

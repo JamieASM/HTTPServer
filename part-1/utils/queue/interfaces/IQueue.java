@@ -4,6 +4,8 @@ import utils.queue.common.QueueFullException;
 import utils.queue.common.QueueEmptyException;
 import utils.store.Concert;
 
+import java.util.concurrent.atomic.AtomicInteger;
+
 public interface IQueue {
     /**
      * Adds an element to the end of the queue.
@@ -11,7 +13,7 @@ public interface IQueue {
      * @param concert the concert to be queued
      * @param number the number of tickets purchased
      */
-    int enqueue(Concert concert, int number);
+    void enqueue(Concert concert, int number, int id);
 
     /**
      * Removes the element at the head of the queue.
@@ -43,4 +45,6 @@ public interface IQueue {
      * @return The position of the ticket
      */
     int getPosition(int id);
+
+    int reserveId();
 }

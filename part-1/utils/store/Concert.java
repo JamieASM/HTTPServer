@@ -29,12 +29,8 @@ public class Concert {
         return dateTime;
     }
 
-    public void reduceCount() {
-        this.count--;
-    }
-
-    public void increaseCount() {
-        this.count++;
+    public void reduceCount(int amount) {
+        this.count -= amount;
     }
 
     @Override

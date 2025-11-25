@@ -8,18 +8,16 @@ import javax.json.JsonReader;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 
 public class Store {
     private HashMap<String, Concert> concerts;
-    private List<Ticket> purchasedTickets;
+    private HashMap<Integer, Purchase> purchases;
 
     public Store(String json) {
         try {
             this.concerts = parseJson(Json.createReader(new FileInputStream(json)));
-            this.purchasedTickets = new ArrayList<>();
+            this.purchases = new HashMap<>();
         }
         catch (FileNotFoundException e) {
             System.err.println("File not found: " + e.getMessage());
@@ -63,18 +61,11 @@ public class Store {
         return sb.toString();
     }
 
-    // TODO: USE THIS
-    public void addPurchasedTicket(Ticket ticket) {
-        purchasedTickets.add(ticket);
+    public void addPurchase(Purchase purchase) {
+        purchases.put(purchase.getId(), purchase);
     }
 
-    public Ticket getTicket(String purchasedId) {
-        for (Ticket ticket : purchasedTickets) {
-            if (ticket.getPurchasedID().equals(purchasedId)) {
-                return ticket;
-            }
-        }
-        // TODO: HMMMM
-        return null;
+    public Purchase getPurchase(Integer id) {
+        return purchases.get(id);
     }
 }
