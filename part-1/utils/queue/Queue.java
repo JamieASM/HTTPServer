@@ -3,12 +3,17 @@ package utils.queue;
 import utils.queue.common.QueueEmptyException;
 import utils.queue.common.QueueFullException;
 import utils.queue.interfaces.IQueue;
+
 import utils.store.Concert;
 import utils.store.Purchase;
 import utils.store.Store;
 
 import java.util.ArrayList;
 import java.util.List;
+
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class Queue implements IQueue {
@@ -16,14 +21,15 @@ public class Queue implements IQueue {
     private final List<Purchase> queue;
     private final Store store;
     private final AtomicInteger queueId = new AtomicInteger(0);
-
-    private int purchasedTicketId;
+    private final ScheduledExecutorService worker = Executors.newSingleThreadScheduledExecutor();
+    private final AtomicInteger ticketCounter = new AtomicInteger(1);
 
     public Queue(Store store) {
         this.store = store;
         this.CAPACITY = 128; // fair size?
         this.queue = new ArrayList<>();
-        this.purchasedTicketId = 0;
+
+        worker.scheduleAtFixedRate(this::processQueue, 0, 100, TimeUnit.MILLISECONDS);
     }
 
     @Override
@@ -44,7 +50,7 @@ public class Queue implements IQueue {
     }
 
     @Override
-    public List<String> dequeue() {
+    public void dequeue() {
         try {
             if(queue.isEmpty()) {
                 throw new QueueEmptyException();
@@ -54,11 +60,8 @@ public class Queue implements IQueue {
             // get the purchase ids
             List<String> ids = getTicketIds(purchase.getNumberOfTickets());
             purchase.setTicketIDs(ids);
-
-            return ids;
         } catch (QueueEmptyException e) {
             System.out.println("Queue empty");
-            return null;
         }
     }
 
@@ -89,7 +92,7 @@ public class Queue implements IQueue {
             }
         }
 
-        System.out.println("Error: a ticket with that id was not found");
+        System.out.println("Not a member of this queue");
         return -1;
     }
 
@@ -104,10 +107,21 @@ public class Queue implements IQueue {
     }
 
     private String makePurchaseID() {
-        purchasedTicketId++;
-
-        // TODO: nicely format if there is time
-        return "T-" + purchasedTicketId;
+        return "T-" + ticketCounter.getAndIncrement();
     }
 
+    private void processQueue() {
+        synchronized (queue) {
+            if (!queue.isEmpty()) {
+                Purchase purchase = queue.removeFirst();
+
+                // assign ticket IDs
+                List<String> ids = getTicketIds(purchase.getNumberOfTickets());
+                purchase.setTicketIDs(ids);
+
+                // reduce tickets
+                purchase.getConcert().reduceCount(purchase.getNumberOfTickets());
+            }
+        }
+    }
 }

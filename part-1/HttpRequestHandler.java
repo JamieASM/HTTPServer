@@ -293,6 +293,7 @@ public class HttpRequestHandler {
 
         // See the position of the id
         int position = queue.getPosition(id);
+
         Purchase purchase = store.getPurchase(id);
         System.out.println(id);
         System.out.println(store.getPurchase(id));
@@ -326,7 +327,7 @@ public class HttpRequestHandler {
             queue.enqueue(concert, numberOfTickets, id);
             concert.reduceCount(numberOfTickets);
 
-            System.out.println(id);
+//            queue.dequeue();
         }, delay, TimeUnit.SECONDS);
 
         return id;

@@ -23,6 +23,10 @@ public class Purchase {
         return id;
     }
 
+    public Concert getConcert() {
+        return concert;
+    }
+
     public int getNumberOfTickets() {
         return numberOfTickets;
     }
@@ -33,7 +37,7 @@ public class Purchase {
     }
 
     public JsonObject toJson(int position) {
-        if (position == 0) {
+        if (position < 0) {
             return Json.createObjectBuilder()
                     .add("id", id)
                     .add("tickets", numberOfTickets)

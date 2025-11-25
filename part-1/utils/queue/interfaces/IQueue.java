@@ -20,7 +20,7 @@ public interface IQueue {
      *
      * @return the element removed
      */
-    Object dequeue();
+    void dequeue();
 
     /**
      * Returns the number of elements in the queue.
