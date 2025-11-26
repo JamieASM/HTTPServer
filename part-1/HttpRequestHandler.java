@@ -55,7 +55,10 @@ public class HttpRequestHandler {
                 res = serveIndex();
             }
             else if (path.equals("/styles.css")) {
-                res = serveStatic("./styles.css", ContentType.css);
+                res = serveStatic("/styles.css", ContentType.css);
+            }
+            else if (path.equals("/scripts/index.js")) {
+                res = serveStatic("/scripts/index.js", ContentType.javascript);
             }
             else if (path.startsWith("/tickets")) {
                 res = handleTicketRequest();
@@ -325,9 +328,6 @@ public class HttpRequestHandler {
 
         scheduler.schedule(() -> {
             queue.enqueue(concert, numberOfTickets, id);
-            concert.reduceCount(numberOfTickets);
-
-//            queue.dequeue();
         }, delay, TimeUnit.SECONDS);
 
         return id;

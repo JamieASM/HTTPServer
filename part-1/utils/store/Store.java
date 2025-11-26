@@ -54,8 +54,10 @@ public class Store {
 
         for (String artist : concerts.keySet()) {
             sb.append(concerts.get(artist).toString());
+            sb.append(",");
         }
 
+        sb.deleteCharAt(sb.length() - 1);
         sb.append("]");
 
         return sb.toString();

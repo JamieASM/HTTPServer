@@ -9,8 +9,10 @@ import utils.store.Purchase;
 import utils.store.Store;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
+import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -24,12 +26,18 @@ public class Queue implements IQueue {
     private final ScheduledExecutorService worker = Executors.newSingleThreadScheduledExecutor();
     private final AtomicInteger ticketCounter = new AtomicInteger(1);
 
+    // Track when each purchase was added to the queue
+    private final Map<Integer, Long> queueTimestamps = new HashMap<>();
+
+    // Minimum time in queue before processing (in milliseconds)
+    private static final long MIN_QUEUE_TIME = 10000; // 10 seconds
+
     public Queue(Store store) {
         this.store = store;
         this.CAPACITY = 128; // fair size?
         this.queue = new ArrayList<>();
 
-        worker.scheduleAtFixedRate(this::processQueue, 0, 100, TimeUnit.MILLISECONDS);
+        worker.scheduleAtFixedRate(this::processQueue, 1, 1, TimeUnit.SECONDS);
     }
 
     @Override
@@ -40,6 +48,8 @@ public class Queue implements IQueue {
                 // add to the queue and store
                 store.addPurchase(purchase);
                 queue.add(purchase);
+
+                queueTimestamps.put(id, System.currentTimeMillis());
             } else {
                 throw new QueueFullException();
             }
@@ -60,6 +70,8 @@ public class Queue implements IQueue {
             // get the purchase ids
             List<String> ids = getTicketIds(purchase.getNumberOfTickets());
             purchase.setTicketIDs(ids);
+
+            queueTimestamps.remove(purchase.getId());
         } catch (QueueEmptyException e) {
             System.out.println("Queue empty");
         }
@@ -113,14 +125,30 @@ public class Queue implements IQueue {
     private void processQueue() {
         synchronized (queue) {
             if (!queue.isEmpty()) {
-                Purchase purchase = queue.removeFirst();
+                Purchase purchase = queue.get(0);
+                Long entryTimestamp = queueTimestamps.get(purchase.getId());
 
-                // assign ticket IDs
-                List<String> ids = getTicketIds(purchase.getNumberOfTickets());
-                purchase.setTicketIDs(ids);
+                if (entryTimestamp != null) {
+                    long timeInQueue = System.currentTimeMillis() - entryTimestamp;
 
-                // reduce tickets
-                purchase.getConcert().reduceCount(purchase.getNumberOfTickets());
+                    // Only process if it's been in queue long enough
+                    if (timeInQueue >= MIN_QUEUE_TIME) {
+                        queue.removeFirst();
+                        queueTimestamps.remove(purchase.getId());
+
+                        // assign ticket IDs
+                        List<String> ids = getTicketIds(purchase.getNumberOfTickets());
+                        purchase.setTicketIDs(ids);
+
+                        // reduce tickets
+                        purchase.getConcert().reduceCount(purchase.getNumberOfTickets());
+
+                        System.out.println("Purchase " + purchase.getId() + " processed after " + timeInQueue + "ms");
+                    } else {
+                        System.out.println("Purchase " + purchase.getId() + " waiting... (" +
+                                (MIN_QUEUE_TIME - timeInQueue) + "ms remaining)");
+                    }
+                }
             }
         }
     }
