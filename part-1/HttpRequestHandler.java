@@ -1,33 +1,26 @@
 import utils.queue.interfaces.IQueue;
 import utils.queue.Queue;
 
-import utils.store.Concert;
-import utils.store.Purchase;
+import utils.request.DefaultResponses;
+import utils.request.types.QueueRequest;
+import utils.request.types.TicketRequest;
 import utils.store.Store;
 
-import utils.HttpRequest;
+import utils.request.HttpRequest;
 import utils.HttpResponse;
 
-import utils.enums.HttpStatus;
-import utils.enums.ContentType;
-
-import javax.json.Json;
-import javax.json.JsonObject;
-import javax.json.JsonReader;
+import utils.request.enums.HttpStatus;
+import utils.request.enums.ContentType;
 
 import java.io.BufferedReader;
 import java.io.OutputStream;
 import java.io.IOException;
 import java.io.File;
-import java.io.StringReader;
 
 import java.nio.file.Files;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Processes all requests made by the client to the HTTP server.
@@ -39,9 +32,10 @@ public class HttpRequestHandler {
 
     private static final Store store = new Store("./tickets.json");
     private static final IQueue queue = new Queue(store);
-    private static final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(4);
 
-    private HttpRequest req;
+    private final DefaultResponses defaultResponses = new DefaultResponses();
+    private final TicketRequest ticketRequest = new TicketRequest(store);
+    private final QueueRequest queueRequest = new QueueRequest(store, queue);
 
     /**
      * Constructor for the HttpRequestHandler class.
@@ -56,12 +50,12 @@ public class HttpRequestHandler {
     }
 
     /**
-     * Processes requests made by the client to the server.
+     * Deciphers the type of request the client requires, and begins processing it.
      */
     protected void handleRequest() {
         try {
             // read the request
-            req = buildRequest();
+            HttpRequest req = buildRequest();
             HttpResponse res;
 
             // get the path of the request
@@ -77,13 +71,13 @@ public class HttpRequestHandler {
                 res = serveStatic("/scripts/index.js", ContentType.javascript);
             }
             else if (path.startsWith("/tickets")) {
-                res = handleTicketRequest();
+                res = ticketRequest.handleRequest(req);
             }
             else if (path.startsWith("/queue")) {
-                res = handleQueueRequest(path);
+                res = queueRequest.handleRequest(req);
             }
             else { // otherwise return a 404 error
-               res = make404();
+               res = defaultResponses.make404();
             }
 
             res.sendResponse(outputStream);
@@ -123,8 +117,6 @@ public class HttpRequestHandler {
         return new HttpRequest(method, path, headers, body);
     }
 
-    // SERVING FILES
-
     /**
      * Attempts to serve a file from the document root to the client.
      * @param file The file the client has requested.
@@ -136,7 +128,7 @@ public class HttpRequestHandler {
         File f  = new File(documentRoot + file);
 
         if (!f.exists()) {
-            return make404();
+            return defaultResponses.make404();
         }
 
         return new HttpResponse(
@@ -157,83 +149,15 @@ public class HttpRequestHandler {
     }
 
     /**
-     * Creates a 404 error object.
-     * @return A HttpResponse object.
-     */
-    private HttpResponse make404() {
-        return new HttpResponse(
-                HttpStatus.NOT_FOUND,
-                ContentType.textPlain,
-                "404 File Not Found".getBytes(),
-                new HashMap<>()
-        );
-    }
-
-    /**
-     * Creates a 500 error object.
-     * @param message The reasoning for the error.
-     * @return A HttpResponse object.
-     */
-    private HttpResponse make500(String message) {
-        return new HttpResponse(
-                HttpStatus.SERVER_ERROR,
-                ContentType.textPlain,
-                message.getBytes(),
-                new HashMap<>()
-        );
-    }
-
-    /**
-     * Creates a 400 error object.
-     * @param message The reasoning for the error.
-     * @return A HttpResponse object.
-     */
-    private HttpResponse make400(String message) {
-        return new HttpResponse(
-                HttpStatus.BAD_REQUEST,
-                ContentType.textPlain,
-                message.getBytes(),
-                new HashMap<>()
-        );
-    }
-
-    /**
-     * Creates a 200 object.
-     * @param message The associated message for the response.
-     * @return A HttpResponse object.
-     */
-    private HttpResponse make200(String message) {
-        return new HttpResponse(
-                HttpStatus.OK,
-                ContentType.textPlain,
-                message.getBytes(),
-                new HashMap<>()
-        );
-    }
-
-    private HttpResponse queue404() {
-        JsonObject json = Json.createObjectBuilder()
-                .add("status", "waiting..")
-                .add("position", -3)
-                .build();
-
-        return new HttpResponse(
-                HttpStatus.OK,
-                ContentType.json,
-                json.toString().getBytes(),
-                new HashMap<>()
-        );
-    }
-
-    /**
-     *
-     * @return
-     * @throws IOException
+     * Creates a map of headers from the client's request.
+     * @return A map of headers.
+     * @throws IOException Should not be thrown.
      */
     private HashMap<String, String> parseHeaders() throws IOException {
         HashMap<String, String> headers = new HashMap<>();
         String line;
 
+        // iterates through every header
         while((line = reader.readLine()) != null && !line.isEmpty()) {
             int colon = line.indexOf(':');
             if (colon != -1) {
@@ -244,152 +168,5 @@ public class HttpRequestHandler {
         }
 
         return headers;
-    }
-
-    // GET /tickets
-
-    public HttpResponse handleTicketRequest() {
-        /*
-        For example,
-        GET /tickets HTTP/1.1
-        Accept: application/json
-         */
-
-        if (!req.method().equals("GET")) {
-            return make500("Only GET is allowed for /tickets.");
-        }
-
-        if (!req.headers().get("Accept").equals("application/json")) {
-            return make500("Accept must be application/json.");
-        }
-
-        if (req.headers().containsKey("Content-Length")) {
-            return make500("Unexpected content was provided.");
-        }
-
-        // otherwise, return all the tickets
-        return new HttpResponse(
-                HttpStatus.OK,
-                ContentType.json,
-                store.toString().getBytes(),
-                new HashMap<>()
-        );
-    }
-
-    // /queue REQUESTS
-
-    private HttpResponse handleQueueRequest(String path) throws IOException {
-        if (req.method().equals("GET")) {
-            return handleQueueGetRequest(path);
-        }
-        else if (req.method().equals("POST")) {
-            return handleQueuePostRequest(path.substring("/queue".length()).replaceAll("-", " "));
-        }
-
-        return make500("The /queue request made is invalid.");
-    }
-
-    // POST
-
-    private HttpResponse handleQueuePostRequest(String artist) {
-        // check the request headers
-        if (!req.headers().get("Accept").equals("application/json")) {
-            return make500("Accept must be application/json");
-        }
-        else if (!req.headers().get("Content-Type").equals("application/json")) {
-            return make500("Content-Type must be application/json");
-        }
-
-        // check that an artist has been attached.
-        if (artist.isBlank() || artist.equals("/")) {
-            return make400("Invalid request: Missing artist name");
-        }
-
-        artist = artist.substring(1);
-
-        // get the concert
-        Concert concert = store.getConcert(artist);
-
-        // check that the concert exists
-        if (concert == null) {
-            return make400("Invalid request: Invalid artist name");
-        }
-
-        // now we know that the concert is valid, we need to see if there are tickets available
-        int numberOfTickets = parseNumberOfTickets();
-
-        if (concert.getCount() <= numberOfTickets) {
-            return make200("The number of tickets requested exceeds the number of tickets available.");
-        }
-
-        // reserve an ID
-        int id = queue.reserveId();
-
-        // make a new purchase instance
-        Purchase purchase = new Purchase(concert, id, numberOfTickets);
-        store.addPurchase(purchase);
-
-        // Add after a random delay (5-10 seconds)
-        int delay = (int)(Math.random() * 6) + 5;
-
-        scheduler.schedule(() -> {
-            queue.enqueue(purchase);
-        }, delay, TimeUnit.SECONDS);
-
-        HashMap<String, String> headers = new HashMap<>();
-        headers.put("Location", "/queue/" + id);
-
-        return new HttpResponse(
-                HttpStatus.CREATED,
-                ContentType.json,
-                ("{\"id\": " + id + "}").getBytes(),
-                headers
-        );
-    }
-
-    private int parseNumberOfTickets() {
-        JsonReader reader = Json.createReader(new StringReader(req.body()));
-        JsonObject jsonObject = reader.readObject();
-        int numberOfTickets = jsonObject.getInt("tickets");
-        reader.close();
-
-        return numberOfTickets;
-    }
-
-    // GET
-
-    private HttpResponse handleQueueGetRequest(String path) {
-        if (!path.startsWith("/queue/")) {
-            return make404();
-        }
-
-        // get the id
-        String ticketId = path.substring("/queue/".length());
-        int id;
-
-        try {
-            id = Integer.parseInt(ticketId);
-        } catch (NumberFormatException e) {
-            return make500("Ticket id must be an integer");
-        }
-
-        // See the position of the id
-        int position = queue.getPosition(id);
-
-        Purchase purchase = store.getPurchase(id);
-        System.out.println(store.getPurchase(id));
-
-        if (purchase == null) {
-            return make404();
-        }
-
-        JsonObject json = purchase.toJson(position);
-
-        return new HttpResponse(
-                HttpStatus.OK,
-                ContentType.json,
-                json.toString().getBytes(),
-                new HashMap<>()
-        );
     }
 }
