@@ -1,14 +1,27 @@
 package utils;
 
-import utils.enums.ContentType;
-import utils.enums.HttpStatus;
+import utils.request.enums.ContentType;
+import utils.request.enums.HttpStatus;
 
 import java.io.IOException;
 import java.io.OutputStream;
+
 import java.util.Map;
 
+/**
+ * Represents Http responses as an java object.
+ * @param status The status of a response (i.e. OK, CREATED...).
+ * @param contentType The type of content the response contains (i.e. text/html, text/css...).
+ * @param bytes The content to be sent to the client in the form of a byte array.
+ * @param headers The headers of the response.
+ */
 public record HttpResponse(HttpStatus status, ContentType contentType, byte[] bytes, Map<String, String> headers) {
 
+    /**
+     * Builds and send a HTTP response to the client.
+     * @param outputStream The output stream to write the response.
+     * @throws IOException Thrown if there is an error with the output stream.
+     */
     public void sendResponse(OutputStream outputStream) throws IOException {
         StringBuilder builder = new StringBuilder();
 
