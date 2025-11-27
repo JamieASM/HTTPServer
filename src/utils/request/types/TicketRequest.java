@@ -15,7 +15,6 @@ import utils.store.Store;
 import javax.json.JsonReader;
 import javax.json.Json;
 import javax.json.JsonObject;
-import javax.json.JsonString;
 
 import java.io.StringReader;
 
@@ -173,18 +172,16 @@ public class TicketRequest {
             entry.getKey().increaseCount(entry.getValue());
         }
 
-        Map<String, String> headers = new HashMap<>();
-        headers.put("Accept", "application/json");
+        JsonObject responseJson = Json.createObjectBuilder()
+                .add("refundedCount", ticketIds.size())
+                .build();
 
-        this.req = new HttpRequest(
-                "GET",
-                "/tickets",
-                headers,
-                ""
+        return new HttpResponse(
+                HttpStatus.OK,
+                ContentType.json,
+                responseJson.toString().getBytes(),
+                new HashMap<>()
         );
-
-        // the client now needs to update their information, so let's send all the tickets back
-        return handleGetRequest();
     }
 
     /**
