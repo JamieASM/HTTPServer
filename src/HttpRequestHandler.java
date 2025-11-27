@@ -67,8 +67,8 @@ public class HttpRequestHandler {
             else if (path.equals("/styles.css")) {
                 res = serveStatic("/styles.css", ContentType.css);
             }
-            else if (path.equals("/scripts/index.js")) {
-                res = serveStatic("/scripts/index.js", ContentType.javascript);
+            else if (path.equals("/index.js")) {
+                res = serveStatic("/index.js", ContentType.javascript);
             }
             else if (path.startsWith("/tickets")) {
                 res = ticketRequest.handleRequest(req);
