@@ -192,13 +192,24 @@ public class TicketRequest {
      * @return A list of Ticket Ids.
      */
     private List<String> parseTicketIds() {
+        System.out.println(req.body());
+
         JsonReader reader = Json.createReader(new StringReader(req.body()));
         JsonObject jsonObject = reader.readObject();
 
-        return jsonObject.getJsonArray("ticketIds")
-                        .getValuesAs(JsonString.class)
-                        .stream()
-                        .map(JsonString::getString)
-                        .toList();
+        if (!jsonObject.containsKey("ticketIDs")) {
+            throw new IllegalArgumentException("Ticket ID missing");
+        }
+
+        return jsonObject.getJsonArray("ticketIDs").stream()
+                .map(jsonValue -> {
+                    switch (jsonValue.getValueType()) {
+                        case STRING:
+                            return jsonValue.toString().replace("\"", ""); // remove quotes
+                        default:
+                            throw new IllegalArgumentException("ticketIds must be an array of strings");
+                    }
+                })
+                .toList();
     }
 }

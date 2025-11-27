@@ -5,7 +5,10 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // key: queue id, value: concert id
     const queueMap = new Map();
+    // key: queue id, value: artist
     const artistMap = new Map();
+    // key: ticketID, value {artist, concert id}
+    const purchasedTickets = new Map();
 
     // Get ticket elements
     const ticketsSection = document.getElementById("ticket-section");
@@ -15,6 +18,11 @@ document.addEventListener("DOMContentLoaded", function () {
     const queueSection = document.getElementById("queue-info");
     const queueElement = document.querySelector(".queue-element");
     const queueElementClone = queueElement.cloneNode(true);
+
+    // Get the My Purchased Ticket elements
+    const purchasedSection = document.getElementById("refund");
+    const purchasedElement = document.querySelector(".purchased-ticket");
+    const purchasedElementClone = purchasedElement.cloneNode(true);
 
     // remove the original ticket and queue element.
     ticketElement.style.display = "none";
@@ -269,9 +277,19 @@ document.addEventListener("DOMContentLoaded", function () {
                     // If purchase completed, update ticket count
                     if (data.position === -1 ) {
                         if (queueMap.has(data.id)) {
-                            updateTicketCount(concertID, data.tickets);
+                            const artistName = artistMap.get(data.id);
+                            purchasedTickets.set(data.ticketIds, {
+                                artist: artistName,
+                                concertId: concertID
+                            })
+
+                            displayPurchasedTickets(data.ticketIds);
+
                             queueMap.delete(data.id);
                             artistMap.delete(data.id);
+
+                            // use the ticket information
+                            updateTicketCount(concertID, data.tickets);
                         }
                         return null; // and display nothing
                     }
@@ -367,5 +385,57 @@ document.addEventListener("DOMContentLoaded", function () {
 
         queueSection.appendChild(clone);
     }
+
+    // ------------------------------------------------------------------------------------------
+    // Refunds
+
+    function displayPurchasedTickets(ticketIds) {
+        purchasedSection.querySelectorAll('.purchased-ticket').forEach(e => e.remove());
+
+        const clone = purchasedElementClone.cloneNode(true);
+        clone.style.display = "";
+
+        const ticketInfo = purchasedTickets.get(ticketIds);
+        if (!ticketInfo) {
+            return
+        }
+
+        clone.getElementsByClassName("artist")[0].textContent = ticketInfo.artist;
+        clone.getElementsByClassName("ticket-id")[0].textContent = ticketIds;
+
+        const button = clone.getElementsByClassName("refund")[0];
+
+        button.addEventListener("click", () => {
+            requestRefund(ticketIds);
+        });
+
+        purchasedSection.appendChild(clone);
+    }
+
+    function requestRefund(ticketIDs) {
+        if (!confirm("Are you sure you want to cancel this purchase?")) return;
+
+        fetch(`/tickets/refund`, {
+            method: "POST",
+            headers: {
+                "Accept": "application/json",
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ ticketIDs }) // fixed comma
+        })
+            .then(res => {
+                if (!res.ok) throw new Error(`Server error: ${res.status}`);
+                return res.json();
+            })
+            .then(updatedData => {
+                purchasedTickets.delete(ticketIDs);
+                displayPurchasedTickets(updatedData.tickets);
+                alert("Tickets refunded successfully")
+            })
+            .catch(err => {
+                alert("Failed to refund ticket: " + err.message);
+            });
+    }
+
 })
 
