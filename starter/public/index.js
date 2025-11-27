@@ -131,7 +131,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     /**
-     * Creates a HTML element to represent a concert instance.
+     * Creates an HTML element to represent a concert instance.
      * @param json The JSON object that contains the concert data.
      */
     function addConcert(json) {
@@ -191,7 +191,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 if (!res.ok) {
                     if (res.status === 400 || res.status === 500 ) {
                         // alert the user
-                        return res.text().then(text => {
+                        return res.text().then(() => {
                             throw new Error(res.text || `Server error: ${res.status}`);
                         })
                     }
@@ -342,7 +342,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     /**
      * Updates the number of tickets available.
-     * @param concertID The id of the concert that is having a ticket count updated.
+     * @param concertID The id of the concert having a ticket count updated.
      * @param numberOfTickets The number of tickets the count will change by.
      */
     function updateTicketCount(concertID, numberOfTickets) {
