@@ -18,7 +18,11 @@ import javax.json.JsonString;
 
 import java.io.StringReader;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
+import java.util.Arrays;
 
 /**
  * Helper class to process '/ticket' HTTP requests.
