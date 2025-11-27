@@ -53,14 +53,12 @@ public class TicketRequest {
         // Check the method type. Valid methods: GET, POST.
         if (
                 req.method().equals("GET")
-                && req.headers().size() == 1
                 && req.headers().get("Accept").equals("application/json")
         ) {
             return handleGetRequest();
         }
         else if (
                 req.method().equals("POST")
-                && req.headers().size() == 4
                 && req.headers().get("Accept").equals("application/json")
                 && req.headers().get("Content-Type").equals("application/json")
         ) {
