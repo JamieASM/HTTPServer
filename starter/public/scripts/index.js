@@ -3,8 +3,9 @@ document.addEventListener("DOMContentLoaded", function () {
     // ----------------------------------------------------------------------
     // Set up HTML Elements
 
-    // key: queue id, value: artist
+    // key: queue id, value: concert id
     const queueMap = new Map();
+    const artistMap = new Map();
 
     // Get ticket elements
     const ticketsSection = document.getElementById("ticket-section");
@@ -23,7 +24,9 @@ document.addEventListener("DOMContentLoaded", function () {
     const dropdown = document.getElementById("selector");
 
     dropdown.addEventListener("change", event => {
-        if (event.target.value === "-1") {
+        const value = event.target.value;
+
+        if (value === "-1") {
             ticketElement.style.display = "none";
         } else {
             requestInfo(value);
@@ -82,6 +85,7 @@ document.addEventListener("DOMContentLoaded", function () {
      * @param id The unique id of the artist.
      */
     function requestInfo(id) {
+        // Info about the tickets
         fetch(`/tickets/${id}`, {
             method: "GET",
             headers: {"Accept": "application/json"}
@@ -122,7 +126,7 @@ document.addEventListener("DOMContentLoaded", function () {
      * @param json The JSON object that contains the concert data.
      */
     function addConcert(json) {
-        ticketElement.style.display = ""
+        ticketElement.style.display = "";
 
         // add the text
         ticketElement.getElementsByClassName("artist")[0].textContent = json.artist;
@@ -132,13 +136,13 @@ document.addEventListener("DOMContentLoaded", function () {
 
         // Add the concert to the button and an associated queue event listener
         const button = ticketElement.getElementsByClassName("join-queue")[0];
-        button.dataset.id = json.id;
+        button.dataset.concertID = json.id;
 
         // event listener
         button.addEventListener("click", () => {
             let numberOfTickets = requestNumberOfTickets();
             if (numberOfTickets !== null) {
-                queue(button.dataset.id, numberOfTickets);
+                queue(button.dataset.concertID, numberOfTickets);
             }
         })
     }
@@ -157,14 +161,15 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     // ----------------------------------------------------------------------
+    // Making 'queue' requests
 
     /**
      * Requests the server to queue a ticket purchase request.
-     * @param artist The artist who's tickets the client wants to purchase.
+     * @param id The unique id of the concert
      * @param numberOfTickets The number of tickets the client wants to purchase.
      */
-    function queue(artist, numberOfTickets) {
-        fetch(`/queue/${artist.replaceAll(" ", "-")}`, {
+    function queue(id, numberOfTickets) {
+        fetch(`/queue/${id}`, {
             method: "POST",
             headers: {
                 "Accept": "application/json",
@@ -188,7 +193,9 @@ document.addEventListener("DOMContentLoaded", function () {
             })
             .then(data => {
                 window.alert(`Your request has been successfully added to the queue.\nYour Queue ID is: ${data.id}`);
-                queueMap.set(data.id, artist);
+                const artistName = ticketElement.querySelector(".artist").textContent;
+                artistMap.set(data.id, artistName);
+                queueMap.set(data.id, id);
             })
             .catch(error => {
                 window.alert("Error: ", error);
@@ -203,16 +210,24 @@ document.addEventListener("DOMContentLoaded", function () {
         let res
 
         // prompt the user until the response is valid
-        do {
+        while(true) {
             res = prompt("Please enter the number of tickets to be purchased: ");
 
+            // if the user cancels, return nothing.
             if (res === null) {
                 return null;
             }
 
-        } while (!Number.isInteger(Number(res)))
+            res = res.trim();
 
-        return Number(res)
+            if (res !== "") {
+                const number = Number(res);
+
+                if(Number.isInteger(number) && number > 0) {
+                    return number;
+                }
+            }
+        }
     }
 
     // periodic call to the reload the queue
@@ -227,8 +242,8 @@ document.addEventListener("DOMContentLoaded", function () {
         }
 
         // grabs the data for each queue element
-        const fetchData = Array.from(queueMap.entries()).map(([queueId, artist]) => {
-            return fetch(`/queue/${queueId}`, {
+        const fetchData = Array.from(queueMap.entries()).map(([queueId, concertID]) => {
+            return fetch(`/queue/${concertID}/${queueId}`, {
                 method: "GET",
                 headers: { "Accept": "application/json" }
             })
@@ -254,8 +269,9 @@ document.addEventListener("DOMContentLoaded", function () {
                     // If purchase completed, update ticket count
                     if (data.position === -1 ) {
                         if (queueMap.has(data.id)) {
-                            updateTicketCount(artist, data.tickets);
+                            updateTicketCount(concertID, data.tickets);
                             queueMap.delete(data.id);
+                            artistMap.delete(data.id);
                         }
                         return null; // and display nothing
                     }
@@ -318,8 +334,36 @@ document.addEventListener("DOMContentLoaded", function () {
         const clone = queueElementClone.cloneNode(true);
         clone.style.display = "";
 
-        clone.getElementsByClassName("artist")[0].textContent = queueMap.get(data.id);
+        clone.getElementsByClassName("artist")[0].textContent = artistMap.get(data.id);
         clone.getElementsByClassName("position")[0].textContent = data.position;
+
+        const button = clone.getElementsByClassName("cancel")[0];
+        button.dataset.queueID = data.id;
+
+        // event listener
+        button.addEventListener("click", () => {
+            fetch(`/queue/${button.dataset.queueID}`, {
+                method: "DELETE",
+                headers: { "Accept": "application/json" }
+            })
+                .then(res => {
+                    if (res.ok) {
+                        queueMap.delete(button.dataset.queueID);
+                        artistMap.delete(button.dataset.queueID);
+
+                        clone.remove();
+                    } else if (res.status === 404) {
+                        alert("Queue item not found on server.");
+                    } else if (res.status === 500) {
+                        alert("Server error. Try again later.");
+                    } else {
+                        alert(`Error ${res.statusText}`);
+                    }
+                })
+                .catch(error => {
+                    alert("Failed to cancel queue: " + error.message)
+                });
+        });
 
         queueSection.appendChild(clone);
     }

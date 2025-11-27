@@ -118,13 +118,24 @@ public class Queue implements IQueue {
     @Override
     public void remove(int id) {
         synchronized (queue) {
-            // get info about the purchase
-            Purchase purchase = queue.get(id);
-            int position = getPosition(id);
+            // find the purchase in the queue by ID
+            Purchase targetPurchase = null;
+            int position = -1;
 
-            // remove it
-            queue.remove(position);
-            store.getPurchases().remove(purchase.getId());
+            for (int i = 0; i < queue.size(); i++) {
+                if (queue.get(i).getId() == id) {
+                    targetPurchase = queue.get(i);
+                    position = i;
+                    break;
+                }
+            }
+
+            if (targetPurchase != null) {
+                queue.remove(position);
+                queueTimestamps.remove(id);
+                completedPurchases.put(id, false); // mark as removed
+                store.getPurchases().remove(id);
+            }
         }
     }
 

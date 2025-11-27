@@ -61,14 +61,12 @@ public class QueueRequest {
         // Check the method type. Valid methods: POST, GET, DELETE
         if (
                 req.method().equals("GET")
-                && req.headers().size() == 1
                 && req.headers().get("Accept").equals("application/json")
         ) {
             return handleGetRequest();
         }
         else if (
                 req.method().equals("POST")
-                && req.headers().size() == 4
                 && req.headers().get("Accept").equals("application/json")
                 && req.headers().get("Content-Type").equals("application/json")
         ) {
@@ -76,7 +74,6 @@ public class QueueRequest {
         }
         else if (
                 req.method().equals("DELETE")
-                && req.headers().size() == 2
                 && req.headers().get("Accept").equals("application/json")
         ) {
             return handleDeleteRequest();
@@ -101,8 +98,15 @@ public class QueueRequest {
             return defaultResponses.make500("Malformed path parameter");
         }
 
-        int concertID = Integer.parseInt(parts.get(1));
-        int queueID = Integer.parseInt(parts.get(2));
+        int concertID;
+        int queueID;
+
+        try {
+            concertID = Integer.parseInt(parts.get(1));
+            queueID = Integer.parseInt(parts.get(2));
+        } catch (NumberFormatException e) {
+            return defaultResponses.make400("Invalid path parameter");
+        }
 
         // check tha the concert exists
         Concert concert = store.getConcert(concertID);
@@ -146,15 +150,32 @@ public class QueueRequest {
         }
 
         // validate the concert
-        int concertID = Integer.parseInt(parts.get(1));
+        int concertID;
+
+        try {
+            concertID = Integer.parseInt(parts.get(1));
+        } catch (NumberFormatException e) {
+            return defaultResponses.make400("Invalid concert ID.");
+        }
+
         Concert concert = store.getConcert(concertID);
 
         if (concert == null) {
-            return defaultResponses.make400("Invalid request: Invalid artist name");
+            return defaultResponses.make400("Invalid concert ID.");
         }
 
         // now we know that the concert is valid, we need to see if there are tickets available
-        int numberOfTickets = parseNumberOfTickets();
+        int numberOfTickets;
+
+        try {
+            numberOfTickets = parseNumberOfTickets();
+        } catch (Exception e) {
+            return defaultResponses.make400("Invalid JSON body.");
+        }
+
+        if (numberOfTickets <= 0) {
+            return defaultResponses.make400("Number of tickets must be greater than 0.");
+        }
 
         // check that this isn't more tickets than is available.
         if (concert.getCount() < numberOfTickets) {
@@ -164,10 +185,10 @@ public class QueueRequest {
         // now we can assume everything is okay to fully process the request.
 
         // reserve an ID
-        int id = queue.reserveId();
+        int queueId = queue.reserveId();
 
         // make a new purchase instance
-        Purchase purchase = new Purchase(concert, id, numberOfTickets);
+        Purchase purchase = new Purchase(concert, queueId, numberOfTickets);
         store.addPurchase(purchase);
 
         // Add after a random delay (5-10 seconds)
@@ -186,12 +207,16 @@ public class QueueRequest {
         }
 
         HashMap<String, String> headers = new HashMap<>();
-        headers.put("Location", "/queue/" + id);
+        headers.put("Location", "/queue/" + concertID + "/" + queueId);
+
+        JsonObject response = Json.createObjectBuilder()
+                .add("id", queueId)
+                .build();
 
         return new HttpResponse(
                 HttpStatus.CREATED,
                 ContentType.json,
-                ("{\"id\": " + id + "}").getBytes(),
+                response.toString().getBytes(),
                 headers
         );
     }
@@ -224,12 +249,18 @@ public class QueueRequest {
             return defaultResponses.make400("Malformed path parameter");
         }
 
-        int queueID = Integer.parseInt(parts.get(1));
+        int queueID;
+
+        try {
+            queueID = Integer.parseInt(parts.get(1));
+        } catch (NumberFormatException e) {
+            return defaultResponses.make400("Invalid queue ID.");
+        }
 
         int position = queue.getPosition(queueID);
 
         // if the position is negative, the ticket is not a member of the queue.
-        if (position <= 0) {
+        if (position < 0) {
             return defaultResponses.make404();
         }
 
