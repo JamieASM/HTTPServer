@@ -4,6 +4,7 @@ import utils.HttpResponse;
 
 import utils.request.DefaultResponses;
 import utils.request.HttpRequest;
+
 import utils.request.enums.ContentType;
 import utils.request.enums.HttpStatus;
 
@@ -44,21 +45,21 @@ public class TicketRequest {
     /**
      * Processes '/ticket' requests.
      * @param request The request made by the client.
-     * @return A HTTPResponse object.
+     * @return A HttpResponse object.
      */
     public HttpResponse handleRequest(HttpRequest request) {
         this.req = request;
 
         // Check the method type. Valid methods: GET, POST.
         if (
-                request.method().equals("GET")
+                req.method().equals("GET")
                 && req.headers().size() == 1
                 && req.headers().get("Accept").equals("application/json")
         ) {
             return handleGetRequest();
         }
         else if (
-                request.method().equals("POST")
+                req.method().equals("POST")
                 && req.headers().size() == 4
                 && req.headers().get("Accept").equals("application/json")
                 && req.headers().get("Content-Type").equals("application/json")
@@ -91,7 +92,7 @@ public class TicketRequest {
             return new HttpResponse(
                     HttpStatus.OK,
                     ContentType.json,
-                    store.toString().getBytes(),
+                    store.toJson().toString().getBytes(),
                     new HashMap<>()
             );
         }
@@ -110,7 +111,7 @@ public class TicketRequest {
         return new HttpResponse(
                 HttpStatus.OK,
                 ContentType.json,
-                store.getConcert(concertID).toString().getBytes(),
+                store.getConcert(concertID).toJson().toString().getBytes(),
                 new HashMap<>()
         );
     }
@@ -118,7 +119,7 @@ public class TicketRequest {
     /**
      * Processes a 'POST /tickets/refund' request.
      * This request must contain a JSON object with ticketIDs.
-     * @return A HTTPResponse object.
+     * @return A HttpResponse object.
      */
     private HttpResponse handlePostRequest() {
         // split so that we have something like ["tickets", "refund"]
