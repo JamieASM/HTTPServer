@@ -207,7 +207,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 queueMap.set(data.id, id);
             })
             .catch(error => {
-                window.alert("Error: ", error);
+                window.alert(`Error: ${error.message}`,);
             });
     }
 
