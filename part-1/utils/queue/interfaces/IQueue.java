@@ -1,51 +1,43 @@
 package utils.queue.interfaces;
 
 import utils.queue.common.QueueFullException;
-import utils.queue.common.QueueEmptyException;
-import utils.store.Concert;
 import utils.store.Purchase;
 
-import java.util.concurrent.atomic.AtomicInteger;
-
+/**
+ * The interface class for a Queue
+ */
 public interface IQueue {
     /**
-     * Adds an element to the end of the queue.
-     *
-     * @param concert the concert to be queued
-     * @param number the number of tickets purchased
+     * Appends a new purchase to the queue.
+     * @param purchase An object representing the purchase request.
+     * @throws QueueFullException Thrown when the Queue has been filled.
      */
-    void enqueue(Purchase purchase);
+    void enqueue(Purchase purchase) throws QueueFullException;
 
     /**
-     * Removes the element at the head of the queue.
-     *
-     * @return the element removed
+     * Removes the first element added to the Queue.
      */
     void dequeue();
 
     /**
-     * Returns the number of elements in the queue.
-     * @return the number of elements in the queue
-     */
-    int size();
-
-    /**
-     * Checks whether the queue is empty.
-     * @return true if the queue is empty
-     */
-    boolean isEmpty();
-
-    /**
-     * Removes all elements from the queue.
-     */
-    void clear();
-
-    /**
-     * Gets the current position of a ticket purchase in the queue
-     * @param id The id of the ticket
-     * @return The position of the ticket
+     * Gets the current position of a specified purchase request from the queue.
+     * @param id The id of the purchase request
+     * @return The current position of the request.
+     * If the request has already been completed, -1 is returned.
+     * If the request does not exist -3 is returned.
      */
     int getPosition(int id);
 
+    /**
+     * Generates an id for the next purchase request.
+     * @return The id of the next purchase request.
+     */
     int reserveId();
+
+    /**
+     * Removes a specific purchase request from the queue.
+     * This only occurs if the client has requested that the purchase to be cancelled.
+     * @param id The id of the purchase request.
+     */
+    void remove(int id);
 }
