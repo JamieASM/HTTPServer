@@ -6,6 +6,9 @@ import utils.request.enums.HttpStatus;
 
 import java.util.HashMap;
 
+/**
+ * Helper class that generates default HTTP responses.
+ */
 public class DefaultResponses {
     /**
      * Creates a 404 error object.
