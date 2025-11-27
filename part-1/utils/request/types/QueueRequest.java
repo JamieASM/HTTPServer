@@ -2,6 +2,7 @@ package utils.request.types;
 
 import utils.HttpResponse;
 
+import utils.queue.common.QueueFullException;
 import utils.queue.interfaces.IQueue;
 
 import utils.request.DefaultResponses;
@@ -172,7 +173,17 @@ public class QueueRequest {
         // Add after a random delay (5-10 seconds)
         int delay = (int)(Math.random() * 6) + 5;
 
-        scheduler.schedule(() -> queue.enqueue(purchase), delay, TimeUnit.SECONDS);
+        try  {
+            scheduler.schedule(() -> {
+                try {
+                    queue.enqueue(purchase);
+                } catch (QueueFullException e) {
+                    throw new RuntimeException("Queue is full, please try again later");
+                }
+            }, delay, TimeUnit.SECONDS);
+        } catch (RuntimeException e) {
+            return defaultResponses.make500(String.valueOf(e));
+        }
 
         HashMap<String, String> headers = new HashMap<>();
         headers.put("Location", "/queue/" + id);
@@ -223,7 +234,7 @@ public class QueueRequest {
         }
 
         // otherwise, it is a member of the queue, so we need to remove it.
-        queue.removeTicket(queueID);
+        queue.remove(queueID);
 
         return defaultResponses.make200("Deleted.");
     }
