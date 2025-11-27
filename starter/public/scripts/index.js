@@ -1,19 +1,49 @@
 // On website load, do the following
 document.addEventListener("DOMContentLoaded", function () {
-    // key: id, value: artist
+    // ----------------------------------------------------------------------
+    // Set up HTML Elements
+
+    // key: queue id, value: artist
     const queueMap = new Map();
 
-    // html elements
+    // Get ticket elements
     const ticketsSection = document.getElementById("ticket-section");
-    const template = document.getElementsByClassName("ticket-information")[0];
-    const queueSection = document.getElementsByClassName("queue-info")[0];
-    const queueElement = document.getElementsByClassName("queue-element")[0];
+    const ticketElement = document.querySelector(".ticket-information");
+
+    // Get Queue elements
+    const queueSection = document.getElementById("queue-info");
+    const queueElement = document.querySelector(".queue-element");
     const queueElementClone = queueElement.cloneNode(true);
 
-    // hide this element
-    queueElement.style.display = "none";
+    // remove the original ticket and queue element.
+    ticketElement.style.display = "none";
+    queueElement.remove();
 
-    // handle the 'GET /tickets/ requests'
+    // Grab the selector element and attach an event listener
+    const dropdown = document.getElementById("selector");
+
+    dropdown.addEventListener("change", event => {
+        if (event.target.value === "-1") {
+            ticketElement.style.display = "none";
+        } else {
+            requestInfo(value);
+        }
+    })
+
+    /**
+     * Adds a new artist's concert to the dropdown.
+     * @param concert
+     */
+    function appendToDropdown(concert) {
+        const option = document.createElement("option");
+
+        option.value = concert.id;
+        option.text = `${concert.artist}: ${makeHumanReadable(concert.dateTime)}`;
+
+        dropdown.add(option, null);
+    }
+
+    // Populate the dropdown with all the artists.
     fetch("/tickets", {
         method: "GET",
         headers: {"Accept": "application/json"}
@@ -32,23 +62,49 @@ document.addEventListener("DOMContentLoaded", function () {
 
             // otherwise, the response was ok
             return response.json();
-    })
-        .then(concerts => {
-            if (concerts === "{}") {
-                addTicketError("No concerts available");
-            } else {
-                // add these to the web page
-                concerts.forEach(concert => {
-                    addConcert(concert);
-                });
-            }
-
-            // now they are all loaded, hide the first one
-            template.style.display = "none";
+        })
+        .then(data => {
+            data.concerts.forEach(
+                concert => {
+                    appendToDropdown(concert);
+                }
+            )
         })
         .catch(err => {
             addTicketError(err.message || "Failed to retrieve resources");
         });
+
+    // ----------------------------------------------------------------------
+    // GET specific ticket info:
+
+    /**
+     * Sends a 'GET ticket/{id}' request to the server.
+     * @param id The unique id of the artist.
+     */
+    function requestInfo(id) {
+        fetch(`/tickets/${id}`, {
+            method: "GET",
+            headers: {"Accept": "application/json"}
+        })
+            .then((response) => {
+                // handle the case that the response is an error.
+                if (!response.ok) {
+                    // only a 500 error is possible for this request type
+                    if (response.status === 500) {
+                        return response.text().then(text => {
+                            throw new Error(text || "Server Error");
+                        })
+                    }
+                    throw new Error(response.statusText);
+                }
+
+                // otherwise, the response was ok
+                return response.json();
+            })
+            .then(concert => {
+                addConcert(concert)
+            })
+    }
 
     /**
      * Generates a p element to show the client the error.
@@ -66,27 +122,25 @@ document.addEventListener("DOMContentLoaded", function () {
      * @param json The JSON object that contains the concert data.
      */
     function addConcert(json) {
-        const clone = template.cloneNode(true);
+        ticketElement.style.display = ""
 
         // add the text
-        clone.getElementsByClassName("artist")[0].textContent = json.artist;
-        clone.getElementsByClassName("venue")[0].textContent = json.venue;
-        clone.getElementsByClassName("datetime")[0].textContent = makeHumanReadable(json.datetime);
-        clone.getElementsByClassName("count")[0].textContent = json.count;
+        ticketElement.getElementsByClassName("artist")[0].textContent = json.artist;
+        ticketElement.getElementsByClassName("venue")[0].textContent = json.venue;
+        ticketElement.getElementsByClassName("datetime")[0].textContent = makeHumanReadable(json.dateTime);
+        ticketElement.getElementsByClassName("count")[0].textContent = json.count;
 
         // Add the concert to the button and an associated queue event listener
-        const button = clone.getElementsByClassName("join-queue")[0];
-        button.dataset.artist = json.artist;
+        const button = ticketElement.getElementsByClassName("join-queue")[0];
+        button.dataset.id = json.id;
 
         // event listener
         button.addEventListener("click", () => {
             let numberOfTickets = requestNumberOfTickets();
             if (numberOfTickets !== null) {
-                queue(button.dataset.artist, numberOfTickets);
+                queue(button.dataset.id, numberOfTickets);
             }
         })
-
-        ticketsSection.appendChild(clone);
     }
 
     /**
@@ -101,6 +155,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
         return day + "/" + month + "/" + year;
     }
+
+    // ----------------------------------------------------------------------
 
     /**
      * Requests the server to queue a ticket purchase request.

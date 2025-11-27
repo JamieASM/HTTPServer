@@ -9,20 +9,25 @@
     <header>
         <h1>Ticket Chief</h1>
     </header>
-    <section class="ticket-info" id="ticket-section">
+
+    <section id="ticket-section">
         <!-- This element allows for the user to join the queue for this ticket. -->
         <h2>Ticket Information</h2>
+
+        <select name="ticket" id="selector">
+            <option id="default" value="-1">Select a concert</option>
+        </select>
 
         <div class="ticket-information">
             <p><strong>Artist:</strong> <span class="artist">—</span></p>
             <p><strong>Venue:</strong> <span class="venue">—</span></p>
             <p><strong>Date/Time:</strong> <span class="datetime">—</span></p>
             <p><strong>Tickets Remaining:</strong> <span class="count">—</span></p>
-            <button class="join-queue">Queue to purchase</button>
+            <button class="join-queue" value="-1">Queue to purchase</button>
         </div>
 
     </section>
-    <section class="queue-info">
+    <section id="queue-info">
         <!-- This element shows the user their position in the queue once they have joined. -->
         <h2>Queue</h2>
         <div class="queue-element">
