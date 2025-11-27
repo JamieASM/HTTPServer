@@ -15,7 +15,11 @@ import javax.json.Json;
 import javax.json.JsonObject;
 import javax.json.JsonReader;
 
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.OutputStream;
+import java.io.IOException;
+import java.io.File;
+import java.io.StringReader;
 
 import java.nio.file.Files;
 
@@ -25,6 +29,9 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * Processes all requests made by the client to the HTTP server.
+ */
 public class HttpRequestHandler {
     private final BufferedReader reader;
     private final OutputStream outputStream;
@@ -36,20 +43,29 @@ public class HttpRequestHandler {
 
     private HttpRequest req;
 
+    /**
+     * Constructor for the HttpRequestHandler class.
+     * @param reader To read client requests.
+     * @param outputStream To write server responses.
+     * @param documentRoot The root of all client side resources.
+     */
     public HttpRequestHandler(BufferedReader reader, OutputStream outputStream, String documentRoot) {
         this.reader = reader;
         this.outputStream = outputStream;
         this.documentRoot = documentRoot;
     }
 
+    /**
+     * Processes requests made by the client to the server.
+     */
     protected void handleRequest() {
         try {
+            // read the request
             req = buildRequest();
             HttpResponse res;
 
             // get the path of the request
             String path = req.path().toLowerCase();
-            System.out.println("Path: " + path);
 
             if (path.equals("/")) {
                 res = serveIndex();
@@ -77,65 +93,11 @@ public class HttpRequestHandler {
         }
     }
 
-    // SERVING FILES
-
-    private HttpResponse serveStatic(String file, ContentType contentType) throws IOException {
-        File f  = new File(documentRoot + file);
-
-        if (!f.exists()) {
-            return make404();
-        }
-
-        return new HttpResponse(
-                HttpStatus.OK,
-                contentType,
-                Files.readAllBytes(f.toPath()),
-                new HashMap<>()
-        );
-    }
-
-    private HttpResponse serveIndex() throws IOException {
-        return serveStatic("/index.html", ContentType.html);
-    }
-
-    private HttpResponse make404() {
-        return new HttpResponse(
-                HttpStatus.NOT_FOUND,
-                ContentType.textPlain,
-                "404 File Not Found".getBytes(),
-                new HashMap<>()
-        );
-    }
-
-    private HttpResponse make500(String message) {
-        return new HttpResponse(
-                HttpStatus.SERVER_ERROR,
-                ContentType.textPlain,
-                message.getBytes(),
-                new HashMap<>()
-        );
-    }
-
-    private HttpResponse make400(String message) {
-        return new HttpResponse(
-                HttpStatus.BAD_REQUEST,
-                ContentType.textPlain,
-                message.getBytes(),
-                new HashMap<>()
-        );
-    }
-
-    private HttpResponse make200(String message) {
-        return new HttpResponse(
-                HttpStatus.OK,
-                ContentType.textPlain,
-                message.getBytes(),
-                new HashMap<>()
-        );
-    }
-
-    // PARSING THE REQUESTS
-
+    /**
+     * Reads the clients request and generates an appropriate request object.
+     * @return An object representing the request.
+     * @throws IOException Should not be thrown.
+     */
     private HttpRequest buildRequest() throws IOException {
         String start = reader.readLine();
         String[] parts = start.split(" ");
@@ -161,6 +123,113 @@ public class HttpRequestHandler {
         return new HttpRequest(method, path, headers, body);
     }
 
+    // SERVING FILES
+
+    /**
+     * Attempts to serve a file from the document root to the client.
+     * @param file The file the client has requested.
+     * @param contentType The type of content the requested file contains (i.e. html, css).
+     * @return A HttpResponse object.
+     * @throws IOException Thrown when the file cannot be read.
+     */
+    private HttpResponse serveStatic(String file, ContentType contentType) throws IOException {
+        File f  = new File(documentRoot + file);
+
+        if (!f.exists()) {
+            return make404();
+        }
+
+        return new HttpResponse(
+                HttpStatus.OK,
+                contentType,
+                Files.readAllBytes(f.toPath()),
+                new HashMap<>()
+        );
+    }
+
+    /**
+     * Generates an HttpResponse for the root HTML file (index.html).
+     * @return A HttpResponse object.
+     * @throws IOException if the file cannot be read.
+     */
+    private HttpResponse serveIndex() throws IOException {
+        return serveStatic("/index.html", ContentType.html);
+    }
+
+    /**
+     * Creates a 404 error object.
+     * @return A HttpResponse object.
+     */
+    private HttpResponse make404() {
+        return new HttpResponse(
+                HttpStatus.NOT_FOUND,
+                ContentType.textPlain,
+                "404 File Not Found".getBytes(),
+                new HashMap<>()
+        );
+    }
+
+    /**
+     * Creates a 500 error object.
+     * @param message The reasoning for the error.
+     * @return A HttpResponse object.
+     */
+    private HttpResponse make500(String message) {
+        return new HttpResponse(
+                HttpStatus.SERVER_ERROR,
+                ContentType.textPlain,
+                message.getBytes(),
+                new HashMap<>()
+        );
+    }
+
+    /**
+     * Creates a 400 error object.
+     * @param message The reasoning for the error.
+     * @return A HttpResponse object.
+     */
+    private HttpResponse make400(String message) {
+        return new HttpResponse(
+                HttpStatus.BAD_REQUEST,
+                ContentType.textPlain,
+                message.getBytes(),
+                new HashMap<>()
+        );
+    }
+
+    /**
+     * Creates a 200 object.
+     * @param message The associated message for the response.
+     * @return A HttpResponse object.
+     */
+    private HttpResponse make200(String message) {
+        return new HttpResponse(
+                HttpStatus.OK,
+                ContentType.textPlain,
+                message.getBytes(),
+                new HashMap<>()
+        );
+    }
+
+    private HttpResponse queue404() {
+        JsonObject json = Json.createObjectBuilder()
+                .add("status", "waiting..")
+                .add("position", -3)
+                .build();
+
+        return new HttpResponse(
+                HttpStatus.OK,
+                ContentType.json,
+                json.toString().getBytes(),
+                new HashMap<>()
+        );
+    }
+
+    /**
+     *
+     * @return
+     * @throws IOException
+     */
     private HashMap<String, String> parseHeaders() throws IOException {
         HashMap<String, String> headers = new HashMap<>();
         String line;
@@ -253,9 +322,19 @@ public class HttpRequestHandler {
             return make200("The number of tickets requested exceeds the number of tickets available.");
         }
 
-        // TODO: make this run in the background?
-//        int id = delayEnqueue(concert, numberOfTickets);
-        int id = scheduleEnqueue(concert, numberOfTickets);
+        // reserve an ID
+        int id = queue.reserveId();
+
+        // make a new purchase instance
+        Purchase purchase = new Purchase(concert, id, numberOfTickets);
+        store.addPurchase(purchase);
+
+        // Add after a random delay (5-10 seconds)
+        int delay = (int)(Math.random() * 6) + 5;
+
+        scheduler.schedule(() -> {
+            queue.enqueue(purchase);
+        }, delay, TimeUnit.SECONDS);
 
         HashMap<String, String> headers = new HashMap<>();
         headers.put("Location", "/queue/" + id);
@@ -298,19 +377,13 @@ public class HttpRequestHandler {
         int position = queue.getPosition(id);
 
         Purchase purchase = store.getPurchase(id);
-        System.out.println(id);
         System.out.println(store.getPurchase(id));
 
-        // TODO: Error is here
         if (purchase == null) {
             return make404();
         }
 
         JsonObject json = purchase.toJson(position);
-
-        if (json == null) {
-            return make404();
-        }
 
         return new HttpResponse(
                 HttpStatus.OK,
@@ -318,18 +391,5 @@ public class HttpRequestHandler {
                 json.toString().getBytes(),
                 new HashMap<>()
         );
-    }
-
-    private int scheduleEnqueue(Concert concert, int numberOfTickets) {
-        int id = queue.reserveId();
-
-        // delay of 5-10 seconds
-        int delay = (int)(Math.random() * 6) + 5;
-
-        scheduler.schedule(() -> {
-            queue.enqueue(concert, numberOfTickets, id);
-        }, delay, TimeUnit.SECONDS);
-
-        return id;
     }
 }

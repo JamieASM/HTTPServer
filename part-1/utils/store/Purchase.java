@@ -37,33 +37,12 @@ public class Purchase {
     }
 
     public JsonObject toJson(int position) {
-        if (position == 0) {
-            return Json.createObjectBuilder()
-                    .add("id", id)
-                    .add("tickets", numberOfTickets)
-                    .add("position", 0)
-                    .add("ticketIds", toJsonArray())
-                    .build();
-        }
-        else if (position == -1) {
-            return Json.createObjectBuilder()
-                    .add("id", id)
-                    .add("tickets", numberOfTickets)
-                    .add("position", -1)
-                    .add("ticketIds", toJsonArray())
-                    .build();
-        }
-        else if (position > 0) {
-            return Json.createObjectBuilder()
-                    .add("id", id)
-                    .add("tickets", numberOfTickets)
-                    .add("position", position)
-                    .add("ticketIds", Json.createArrayBuilder().build())
-                    .build();
-        }
-
-        // otherwise, this is an error
-        return null;
+        return Json.createObjectBuilder()
+                .add("id", id)
+                .add("tickets", numberOfTickets)
+                .add("position", position)
+                .add("ticketIds", toJsonArray())
+                .build();
     }
 
     private JsonArrayBuilder toJsonArray() {

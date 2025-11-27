@@ -5,13 +5,20 @@ import java.net.*;
 import java.util.Properties;
 
 // used https://www.youtube.com/watch?v=5wQWJAvMDGg
+
+/**
+ * Entry point for the java HTTP server.
+ */
 public class HttpServer {
 
     private static int port;
-
     private static ServerSocket  server;
     private static Properties prop;
 
+    /**
+     *  Main class for the java HTTP server.
+     * @param args Should not be used.
+     */
     public static void main(String[] args) {
         // load in our properties + json
         Properties prop = PropertiesParser.loadProperties();
@@ -21,8 +28,9 @@ public class HttpServer {
         port = Integer.parseInt(prop.getProperty("serverPort"));
         startServer();
 
+        // Loop forever more
         while (true) {
-            try (
+            try ( // establish a connection
                     Socket connection = server.accept();
                     InputStream inputStream = connection.getInputStream();
                     OutputStream outputStream = connection.getOutputStream();
@@ -40,6 +48,9 @@ public class HttpServer {
         }
     }
 
+    /**
+     * Creates a new server socket.
+     */
     private static void startServer() {
         try {
             server = new ServerSocket(port);

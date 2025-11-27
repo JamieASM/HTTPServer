@@ -3,6 +3,7 @@ package utils.queue.interfaces;
 import utils.queue.common.QueueFullException;
 import utils.queue.common.QueueEmptyException;
 import utils.store.Concert;
+import utils.store.Purchase;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -13,7 +14,7 @@ public interface IQueue {
      * @param concert the concert to be queued
      * @param number the number of tickets purchased
      */
-    void enqueue(Concert concert, int number, int id);
+    void enqueue(Purchase purchase);
 
     /**
      * Removes the element at the head of the queue.
