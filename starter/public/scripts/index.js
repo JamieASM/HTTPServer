@@ -27,6 +27,7 @@ document.addEventListener("DOMContentLoaded", function () {
     // remove the original ticket and queue element.
     ticketElement.style.display = "none";
     queueElement.remove();
+    purchasedElement.remove();
 
     // Grab the selector element and attach an event listener
     const dropdown = document.getElementById("selector");
@@ -327,6 +328,10 @@ document.addEventListener("DOMContentLoaded", function () {
         })
     }
 
+    /**
+     * If an error occurs whilst queuing, that error will be appended to the Queue section of the webpage.
+     * @param message
+     */
     function addQueueError(message) {
         const errorElement = document.createElement("p");
         errorElement.textContent = message;
@@ -335,6 +340,11 @@ document.addEventListener("DOMContentLoaded", function () {
         queueSection.appendChild(errorElement);
     }
 
+    /**
+     * Updates the number of tickets available.
+     * @param concertID The id of the concert that is having a ticket count updated.
+     * @param numberOfTickets The number of tickets the count will change by.
+     */
     function updateTicketCount(concertID, numberOfTickets) {
         if (ticketElement.style.display !== "none") {
             const button = ticketElement.getElementsByClassName("join-queue")[0];
@@ -346,6 +356,10 @@ document.addEventListener("DOMContentLoaded", function () {
         }
     }
 
+    /**
+     * Creates and appends a Queue HTML element
+     * @param data The data for that element in the form of a JSON object.
+     */
     function addQueueElement(data) {
         const clone = queueElementClone.cloneNode(true);
         clone.style.display = "";
@@ -387,8 +401,11 @@ document.addEventListener("DOMContentLoaded", function () {
     // ------------------------------------------------------------------------------------------
     // Refunds
 
+    /**
+     * Displays purchased tickets to the web page
+     * @param ticketIds The ids for the purchased tickets
+     */
     function displayPurchasedTickets(ticketIds) {
-        purchasedSection.querySelectorAll('.purchased-ticket').forEach(e => e.remove());
 
         const clone = purchasedElementClone.cloneNode(true);
         clone.style.display = "";
@@ -405,11 +422,16 @@ document.addEventListener("DOMContentLoaded", function () {
 
         button.addEventListener("click", () => {
             requestRefund(ticketIds);
+            clone.remove()
         });
 
         purchasedSection.appendChild(clone);
     }
 
+    /**
+     * Makes a POST request to the server for a refund and updates the clients view.
+     * @param ticketIDs The ticketIDs for the refund.
+     */
     function requestRefund(ticketIDs) {
         if (!confirm("Are you sure you want to cancel this purchase?")) return;
 
