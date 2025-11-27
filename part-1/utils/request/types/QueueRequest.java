@@ -6,6 +6,7 @@ import utils.queue.interfaces.IQueue;
 
 import utils.request.DefaultResponses;
 import utils.request.HttpRequest;
+
 import utils.request.enums.ContentType;
 import utils.request.enums.HttpStatus;
 
@@ -171,9 +172,7 @@ public class QueueRequest {
         // Add after a random delay (5-10 seconds)
         int delay = (int)(Math.random() * 6) + 5;
 
-        scheduler.schedule(() -> {
-            queue.enqueue(purchase);
-        }, delay, TimeUnit.SECONDS);
+        scheduler.schedule(() -> queue.enqueue(purchase), delay, TimeUnit.SECONDS);
 
         HashMap<String, String> headers = new HashMap<>();
         headers.put("Location", "/queue/" + id);
