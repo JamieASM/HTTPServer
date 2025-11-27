@@ -289,7 +289,7 @@ document.addEventListener("DOMContentLoaded", function () {
                             artistMap.delete(data.id);
 
                             // use the ticket information
-                            updateTicketCount(concertID, data.tickets);
+                            updateTicketCount(concertID, -data.tickets);
                         }
                         return null; // and display nothing
                     }
@@ -335,17 +335,15 @@ document.addEventListener("DOMContentLoaded", function () {
         queueSection.appendChild(errorElement);
     }
 
-    function updateTicketCount(artist, numberOfTickets) {
-        const ticketElements = document.querySelectorAll(".ticket-information");
-
-        ticketElements.forEach(element => {
-           if (element.querySelector(".artist").textContent === artist) {
-               const count = element.querySelector(".count");
-               const currentCount = parseInt(count.textContent);
-
-               count.textContent = currentCount - numberOfTickets;
-           }
-        });
+    function updateTicketCount(concertID, numberOfTickets) {
+        if (ticketElement.style.display !== "none") {
+            const button = ticketElement.getElementsByClassName("join-queue")[0];
+            if (button.dataset.concertID === concertID) {
+                const count = ticketElement.querySelector(".count");
+                const currentCount = parseInt(count.textContent);
+                count.textContent = currentCount + numberOfTickets;
+            }
+        }
     }
 
     function addQueueElement(data) {
@@ -428,8 +426,14 @@ document.addEventListener("DOMContentLoaded", function () {
                 return res.json();
             })
             .then(updatedData => {
+                const ticketInfo = purchasedTickets.get(ticketIDs);
+
+                if (ticketInfo && updatedData.refundedCount) {
+                    updateTicketCount(ticketInfo.concertId, updatedData.refundedCount);
+                }
+
                 purchasedTickets.delete(ticketIDs);
-                displayPurchasedTickets(updatedData.tickets);
+                displayPurchasedTickets(null);
                 alert("Tickets refunded successfully")
             })
             .catch(err => {
