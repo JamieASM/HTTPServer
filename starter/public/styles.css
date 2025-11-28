@@ -65,3 +65,7 @@ select {
   place-items: center;
   row-gap: 0;
 }
+
+.purchased-ticket {
+  white-space: normal;
+}
